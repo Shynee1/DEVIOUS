@@ -1,0 +1,38 @@
+{
+    "name": "recurrent",
+    "cuda": true,
+    "gpu": 0,
+    "save_dir": "saved",
+    "data-root": "/media/jack-ford/Jack_s Disk/summer/data/m3ed_datasets",
+    "cache-root": "cached_encodes",
+    "checkpoints": {
+        "encoder": "checkpoints/M3ED_encoder.ckpt",
+        "recurrent": "checkpoints/M3ED_recurrent.ckpt"
+    },
+    "train": {
+        "batch_size": 1,
+        "sequence_length": 5,
+        "epochs": 50,
+        "learning_rate": 0.0001,
+        "gamma": 0.316,
+        "num_workers": 4,
+        "use_cache": false,
+        "data_names": [
+            "falcon_indoor_flight_1_flow.h5",
+            "falcon_indoor_flight_2_flow.h5",
+            "falcon_indoor_flight_3_flow.h5",
+            "falcon_outdoor_night_high_beams_flow.h5",
+            "falcon_outdoor_night_penno_parking_2_flow.h5",
+            "spot_indoor_building_loop_flow.h5"
+        ]
+    },
+    "test": {
+        "batch_size": 1,
+        "sequence_length": 5,
+        "num_workers": 4,
+        "use_cache": false,
+        "data_names": [
+            "falcon_outdoor_night_penno_parking_1_flow.h5"
+        ]
+    }
+}
