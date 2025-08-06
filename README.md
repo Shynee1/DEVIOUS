@@ -4,7 +4,7 @@
 
 ![Model Architecture](model_architecture.png)
 
-## 📌 What It Does
+## What It Does
 
 EVOLVE predicts how a camera moves — in 3D space — using only sequences of **optical flow computed from event data**. At each timestep, it outputs a 6-DoF relative pose estimate:
 
@@ -17,7 +17,7 @@ Where:
 
 ---
 
-## 🔧 How It Works
+## How It Works
 
 EVOLVE is trained in two stages:
 
@@ -36,7 +36,7 @@ After pretraining, the encoder is reused as a fixed feature extractor in a new p
 
 ---
 
-## ⚡ Event-Based Input
+## Event-Based Input
 
 Unlike conventional visual odometry models that use grayscale or RGB video, EVOLVE operates on **event data** — sparse, high-temporal-resolution streams of brightness change. Optical flow is first estimated using **E-RAFT**, then passed into the EVOLVE pipeline.
 
@@ -47,7 +47,7 @@ This makes EVOLVE well-suited for:
 
 ---
 
-## 🎯 Applications
+## Applications
 
 - Event-based Visual Odometry
 - Drone & Robot Navigation in Extreme Conditions
@@ -56,7 +56,7 @@ This makes EVOLVE well-suited for:
 
 ---
 
-## 💡 Why this matters
+## Why this matters
 
 Traditional visual odometry relies on handcrafted features and frame-based images. EVOLVE learns motion representations **directly from events** — enabling robust, low-latency motion estimation in challenging scenarios.
 
