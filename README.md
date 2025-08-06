@@ -2,7 +2,7 @@
 
 **EVOLVE** is a deep learning model for estimating **6-DoF egomotion** (translation and rotation in 3D) from **event-based optical flow**. Built for robust visual odometry, EVOLVE combines unsupervised representation learning with temporal modeling to predict camera motion over time.
 
-![Model Architecture](./assets/model_architecture.png)
+![Model Architecture](model_architecture.png)
 
 ## 📌 What It Does
 
