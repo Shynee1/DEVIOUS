@@ -76,7 +76,7 @@ class TrainEncoder(Train):
     def __init__(self, model, config, train_loader, test_loader, save_path):
         super(TrainEncoder, self).__init__(model, config, train_loader, test_loader, save_path)
         self.loss_function = RMSELoss()
-        self.tester = TestEncoder(model, config, test_loader, save_path)
+        self.tester = TestEncoder(model, config, test_loader)
     
     def _train(self):
         self.model.train()
@@ -134,7 +134,7 @@ class TrainRecurrent(Train):
         self.loss_function = nn.MSELoss()
         self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
         self.encoding_model = encoding_model
-        self.tester = TestRecurrent(recurrent_model, encoding_model, config, test_loader, save_path)
+        self.tester = TestRecurrent(recurrent_model, encoding_model, config, test_loader)
         self.sequence_length = config['train']['sequence_length']
 
     def encode_flows(self, flow_sequence):
@@ -225,5 +225,7 @@ class TrainRecurrent(Train):
                             test_losses=test_losses, train_losses=train_losses)
             
             print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {epoch_loss / len(self.train_loader):.6f}")
+
+        self.tester._test()
 
         return train_losses, test_losses

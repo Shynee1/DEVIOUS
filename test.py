@@ -35,9 +35,10 @@ class Test(object):
         raise NotImplementedError
 
 class TestEncoder(Test):
-    def __init__(self, model, config, data_loader):
+    def __init__(self, model, config, data_loader, save_path=None):
         super().__init__(model, config, data_loader)
         self.loss_function = RMSELoss()
+        self.save_path = save_path
 
     def _test(self):
         self.model.eval()
@@ -58,6 +59,15 @@ class TestEncoder(Test):
 
                 # Forward pass
                 outputs = self.model(flow)
+
+                if self.save_path is not None:
+                    flow_cpu = flow.squeeze().cpu().numpy()
+                    outputs_cpu = outputs.squeeze().cpu().numpy()
+
+                    os.makedirs(self.save_path, exist_ok=True)
+
+                    visualize_optical_flow(flow_cpu, os.path.join(self.save_path, f"input_{batch_idx+1}.png"), text=f"Input Flow Batch {batch_idx+1}")
+                    visualize_optical_flow(outputs_cpu, os.path.join(self.save_path, f"output_{batch_idx+1}.png"), text=f"Reconstructed Flow Batch {batch_idx+1}")
 
                 # Compute loss
                 loss = self.loss_function(outputs, flow, valid_mask)
