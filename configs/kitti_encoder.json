@@ -9,12 +9,13 @@
         "encoder": "checkpoints/M3ED_encoder.ckpt"
     },
     "train": {
-        "batch_size": 1,
-        "sequence_length": 5,
+        "batch_size": 4,
+        "sequence_length": 0,
         "epochs": 50,
         "learning_rate": 0.0001,
         "gamma": 0.316,
         "num_workers": 4,
+        "save_interval": 10,
         "data_names": [
             "00", "01", "02", "03", "04", "05",
             "06", "07", "08", "09", "10", "11",
@@ -23,9 +24,9 @@
         ]
     },
     "test": {
-        "batch_size": 1,
-        "sequence_length": 5,
-        "num_workers": 0,
+        "batch_size": 4,
+        "sequence_length": 0,
+        "num_workers": 4,
         "data_names": [
             "00"
         ]

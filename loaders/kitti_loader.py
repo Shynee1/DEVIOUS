@@ -5,57 +5,73 @@ from pathlib import Path
 from scipy.spatial.transform import Rotation
 import os
 import torch
-import torch.nn.functional as F
+import tqdm
 from torchvision.models.optical_flow import raft_small, Raft_Small_Weights
-from torchvision.transforms import CenterCrop
 from torchvision.transforms.functional import to_tensor
 from PIL import Image
 
 class KITTISequence(Dataset):
-    def __init__(self, sequence_path: Path, sequence_length: int = 0, cache_path: Path = None, lazy_cache_dir: Path | None = None):
+    def __init__(self, sequence_path: Path, sequence_length: int = 0, cache_path: Path = None):
         base_dir = sequence_path.parent.parent
         sequence = sequence_path.name
         self.data = pykitti.odometry(base_dir, sequence)
         self.timestamps = np.asarray([t.total_seconds() for t in self.data.timestamps])
         self.gt = self.data.poses
+        self.sequence_name = sequence
 
         if (len(self.gt) == 0):
             self.gt = None
         
-        self.device = 'cuda' if torch.cuda.is_available()  else 'cpu'
-
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
         self.raft_target_h = 384
         self.raft_target_w = 1280
 
-        # Directory for lazy per-flow caching (npy per pair)
-        if lazy_cache_dir is None:
-            self.lazy_cache_dir = Path(sequence_path) / 'raft_flows_lazy'
-        else:
-            self.lazy_cache_dir = Path(lazy_cache_dir)
-        self.lazy_cache_dir.mkdir(parents=True, exist_ok=True)
-
         self.load_raft()
 
-        self.num_pairs = len(self.timestamps) - 1
+        self.flow_save_path = os.path.join(sequence_path, "precomputed_raft_flows")
+        if not os.path.exists(self.flow_save_path):
+            self.precompute_raft()
 
     # ---------------- RAFT Flow Generation ----------------
+    def precompute_raft(self):
+        os.makedirs(self.flow_save_path, exist_ok=True)
+        print(f"Precomputing RAFT flow for {self.sequence_name}...")
+
+        for i in tqdm.tqdm(range(len(self))):
+            if os.path.exists(os.path.join(self.flow_save_path, f"flow_{i:06d}.npy")):
+                print(f"Flow for index {i} already exists, skipping.")
+                continue
+
+            flow = self.compute_raft_flow(i)
+            np.save(os.path.join(self.flow_save_path, f"flow_{i:06d}.npy"), flow)
+
+        print(f"All flows saved to {self.flow_save_path}")
+
     def load_raft(self):
         if not hasattr(KITTISequence, '_raft_model'):
             KITTISequence._raft_model = None
 
         if KITTISequence._raft_model is None:
-            model = raft_small(weights=Raft_Small_Weights.DEFAULT)
+            model = raft_small(weights=Raft_Small_Weights.DEFAULT).to(self.device)
             model = model.eval()
             KITTISequence._raft_model = model
 
         self.raft = KITTISequence._raft_model
 
-    def prepare_raft_image(self, img):
+    def prepare_raft_image(self, img, index=-1):
         resized = img.resize((self.raft_target_w, self.raft_target_h), Image.BILINEAR)
-        output = to_tensor(resized).unsqueeze(0)
-        return output
+        
+        if index >= 0:
+            image_save_path = "images"
+            os.makedirs(image_save_path, exist_ok=True)
+            img.save(os.path.join(image_save_path, f"original_{index}.png"))
+            resized.save(os.path.join(image_save_path, f"resized_{index}.png"))
 
-    def get_flow(self, index: int):
+        output = to_tensor(resized).unsqueeze(0).to(self.device)
+        return output
+    
+    def compute_raft_flow(self, index: int):
         img1 = self.data.get_cam2(index)
         img2 = self.data.get_cam2(index + 1)
 
@@ -65,8 +81,14 @@ class KITTISequence(Dataset):
         with torch.no_grad():
             flow = self.raft(t1, t2)
 
-        flow = flow[-1].squeeze(0).permute(1, 2, 0).cpu().numpy().astype(np.float32)
-        return flow
+        return flow[-1].squeeze(0).permute(1, 2, 0).cpu().numpy().astype(np.float32)
+    
+    def get_flow(self, index: int):
+        flow_path = os.path.join(self.flow_save_path, f"flow_{index:06d}.npy")
+        if os.path.exists(flow_path):
+            return np.load(flow_path)
+        else:
+            raise FileNotFoundError(f"Flow file not found: {flow_path}")
 
     def get_image_width_height(self):
         return self.raft_target_h, self.raft_target_w  # (H,W)
@@ -88,6 +110,8 @@ class KITTISequence(Dataset):
 
         if self.gt is not None:
             output['gt_transform'] = np.asarray(self.gt[index], dtype=np.float32)
+        else:
+            output['gt_transform'] = np.zeros((4, 4), dtype=np.float32)
 
         return output
 
