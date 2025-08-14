@@ -24,9 +24,6 @@ class PoseEstimator(nn.Module):
         torch.cuda.empty_cache()
 
     def forward(self, x):
-        # Clear any cached gradients
-        self.reset_cache()
-    
         # Flatten frames for RNN processing 
         batch_size, seq_length, channels, height, width = x.shape
         encoded_sequence = x.view(batch_size, seq_length, -1)

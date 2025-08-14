@@ -5,7 +5,7 @@ from model.pose_estimator import PoseEstimator
 from test import TestEncoder, TestRecurrent, TestEncoderCache
 from train import TrainEncoder, TrainRecurrent
 from utils.egomotion_visualizer import EgomotionVisualizer
-from utils.helper_functions import get_save_path, get_device, load_model
+from utils.helper_functions import get_save_path, load_model, get_num_gpus
 from pathlib import Path
 
 from torch.utils.data import DataLoader
@@ -32,19 +32,19 @@ def get_dataset_class(dataset_name, uses_sequences=True):
 def create_data_loaders(config, dataset_name='m3ed', mode='train', use_sequences=True, uses_visualizer=False):
     """Create data loaders for training or testing"""
     data_root = config['data-root']
+    num_gpus = get_num_gpus()
+    num_workers = 4 * num_gpus if num_gpus > 0 else 0
     
     if mode == 'train':
         data_names = config['train']['data_names']
         batch_size = config['train']['batch_size']
         sequence_length = config['train']['sequence_length']
-        num_workers = config['train'].get('num_workers', 4)
         use_cache = config['train'].get('use_cache', False)
         shuffle_train = True
     else:  # test
         data_names = config['test']['data_names']
         batch_size = config['test']['batch_size']
         sequence_length = config['test'].get('sequence_length', config['train']['sequence_length'])
-        num_workers = config['test'].get('num_workers', 0)
         use_cache = config['test'].get('use_cache', False)
         shuffle_train = False
 
@@ -115,13 +115,12 @@ def train_recurrent(config, dataset_name):
     # Create data loaders
     train_loader, test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='train', use_sequences=True)
 
-    device = get_device(config)
     save_path = get_save_path(config)
     
     # Load encoding model
     encoder_checkpoint = config['checkpoints']['encoder']
     encoding_model = EncoderPipeline()
-    encoding_model = load_model(encoding_model, encoder_checkpoint, device)
+    encoding_model = load_model(encoding_model, encoder_checkpoint)
     
     # Create pose estimation model
     batch_size = config['train']['batch_size']
@@ -151,8 +150,6 @@ def test_recurrent(config, dataset_name):
     # Create test data loader with num_workers=0 for visualizer compatibility
     test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='test', use_sequences=True, uses_visualizer=True)
 
-    # Setup device
-    device = get_device(config)
     save_path = get_save_path(config)
     
     # Setup models
@@ -162,7 +159,7 @@ def test_recurrent(config, dataset_name):
     # Load encoding model
     try:
         encoder_checkpoint = config['checkpoints']['encoder']
-        encoding_model = load_model(encoding_model, encoder_checkpoint, device)
+        encoding_model = load_model(encoding_model, encoder_checkpoint)
     except (FileNotFoundError, KeyError) as e:
         print(f"Warning: {e}")
         print("Using untrained encoder model for testing...")
@@ -172,7 +169,7 @@ def test_recurrent(config, dataset_name):
     model = PoseEstimator(batch_size=config['train']['batch_size'], sequence_length=sequence_length)
     try:
         recurrent_checkpoint = config['checkpoints']['recurrent']
-        model = load_model(model, recurrent_checkpoint, device)
+        model = load_model(model, recurrent_checkpoint)
     except (FileNotFoundError, KeyError) as e:
         print(f"Warning: {e}")
         print("Using untrained recurrent model for testing...")
@@ -209,17 +206,14 @@ def cache_encoder(config, dataset_name):
     
     # Create test data loader (single dataset processing happens in TestEncoderCache)
     test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='test', use_sequences=False)
-    
-    # Setup device  
-    device = get_device(config)
-    
+
     # Setup model
     model = EncoderPipeline()
     
     # Load trained model
     try:
         encoder_checkpoint = config['checkpoints']['encoder']
-        model = load_model(model, encoder_checkpoint, device)
+        model = load_model(model, encoder_checkpoint)
     except (FileNotFoundError, KeyError) as e:
         print(f"Warning: {e}")
         print("Using untrained model for caching...")
@@ -241,12 +235,11 @@ def test_encoder(config, dataset_name):
     # Setup model
     model = EncoderPipeline()
     save_path = get_save_path(config)
-    device = get_device(config)
     
     # Load trained model
     try:
         encoder_checkpoint = config['checkpoints']['encoder']
-        model = load_model(model, encoder_checkpoint, device)
+        model = load_model(model, encoder_checkpoint)
     except (FileNotFoundError, KeyError) as e:
         print(f"Warning: {e}")
         print("Using untrained model for testing...")

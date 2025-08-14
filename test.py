@@ -6,6 +6,7 @@ import os
 
 from utils.loss_functions import RMSELoss
 from utils.visualization import visualize_optical_flow
+from utils.helper_functions import get_num_gpus
 
 class Test(object):
     def __init__(self, model, config, data_loader):
@@ -13,10 +14,18 @@ class Test(object):
         self.config = config
         self.data_loader = data_loader
 
-        if not config['cuda'] or not torch.cuda.is_available():
-            self.device = torch.device('cpu')
+        use_cuda = config.get('cuda', True) and torch.cuda.is_available()
+        requested_gpu = config.get('gpu', 0)
+        num_gpus = get_num_gpus() if use_cuda else 0
+
+        if use_cuda and num_gpus > 0:
+            # Primary device
+            self.device = torch.device(f'cuda:{requested_gpu if requested_gpu < num_gpus else 0}')
+            model.to(self.device)
+            if num_gpus > 1:
+                model = nn.DataParallel(model)
         else:
-            self.device = torch.device('cuda:' + str(config['gpu']))
+            self.device = torch.device('cpu')
 
         self.model.to(self.device)
 
@@ -177,17 +186,11 @@ class TestRecurrent(Test):
             flow = flow_sequence[:, i, :, :, :]
             encoded, _ = self.encoding_model(flow)
             encoded_flows[:, i] = self.pooling(encoded)
-            
-            # Clear intermediate tensors
-            del encoded
         
         return encoded_flows
 
     def _test(self):
         self.model.eval()
-
-        # Reset cache at start of each epoch
-        self.model.reset_cache()
 
         t_range = tqdm.tqdm(self.data_loader)
         total_loss = 0.0
@@ -225,10 +228,6 @@ class TestRecurrent(Test):
                 # Compute loss
                 loss = self.loss_function(outputs, ground_truth)
                 total_loss += loss.item()
-                
-                # Clear GPU cache periodically to prevent memory buildup
-                if batch_idx % 50 == 0:
-                    torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
         avg_loss = total_loss / len(self.data_loader)
 

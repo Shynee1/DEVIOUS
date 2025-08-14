@@ -10,12 +10,11 @@
         "recurrent": "checkpoints/newest_model (1).ckpt"
     },
     "train": {
-        "batch_size": 1,
+        "batch_size": 64,
         "sequence_length": 5,
         "epochs": 50,
         "learning_rate": 0.0001,
         "gamma": 0.316,
-        "num_workers": 4,
         "use_cache": true,
         "save_interval": 10,
         "data_names": [
@@ -29,9 +28,8 @@
         ]
     },
     "test": {
-        "batch_size": 1,
+        "batch_size": 64,
         "sequence_length": 5,
-        "num_workers": 4,
         "use_cache": false,
         "data_names": [
             "falcon_outdoor_night_penno_parking_1_flow.h5"

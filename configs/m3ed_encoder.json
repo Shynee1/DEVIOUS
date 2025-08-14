@@ -9,12 +9,11 @@
         "encoder": "checkpoints/M3ED_encoder.ckpt"
     },
     "train": {
-        "batch_size": 1,
+        "batch_size": 64,
         "sequence_length": 5,
         "epochs": 50,
         "learning_rate": 0.0001,
         "gamma": 0.316,
-        "num_workers": 4,
         "data_names": [
             "falcon_indoor_flight_1_flow.h5",
             "falcon_indoor_flight_2_flow.h5",
@@ -27,9 +26,8 @@
         ]
     },
     "test": {
-        "batch_size": 1,
+        "batch_size": 64,
         "sequence_length": 5,
-        "num_workers": 0,
         "data_names": [
             "car_urban_day_penno_small_loop_eraft.h5"
         ]

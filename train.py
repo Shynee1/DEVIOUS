@@ -6,21 +6,28 @@ import json
 
 from utils.loss_functions import RMSELoss
 from test import TestEncoder, TestRecurrent
+from utils.helper_functions import get_num_gpus
 
 class Train:
     def __init__(self, model, config, train_loader, test_loader, save_path):
-        self.model = model
         self.config = config
         self.train_loader = train_loader
         self.test_loader = test_loader
 
-        if not config['cuda'] or not torch.cuda.is_available():
-            self.device = torch.device('cpu')
+        use_cuda = config.get('cuda', True) and torch.cuda.is_available()
+        requested_gpu = config.get('gpu', 0)
+        num_gpus = get_num_gpus() if use_cuda else 0
+
+        if use_cuda and num_gpus > 0:
+            # Primary device
+            self.device = torch.device(f'cuda:{requested_gpu if requested_gpu < num_gpus else 0}')
+            model.to(self.device)
+            if num_gpus > 1:
+                model = nn.DataParallel(model)
         else:
-            self.device = torch.device('cuda:' + str(config['gpu']))
+            self.device = torch.device('cpu')
 
-        self.model.to(self.device)
-
+        self.model = model
         self.save_path = save_path
 
         train_config = config['train']
@@ -31,8 +38,6 @@ class Train:
         
         self.loss_function = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-
-        # Multiply learning rate every 20 epochs by a constant
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=gamma)
 
     def summary(self):
@@ -52,26 +57,28 @@ class Train:
         # Ensure save directory exists
         os.makedirs(self.save_path, exist_ok=True)
 
-        # Save the losses
         if test_losses is not None and train_losses is not None:
             losses_path = os.path.join(self.save_path, 'losses.json')
             with open(losses_path, 'w') as f:
                 json.dump({'train_losses': train_losses, 'test_losses': test_losses}, f)
 
+        # Access underlying module for saving
+        model_to_save = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
+
         if epoch % train_config.get('save_interval', 1) == 0:
             save_path = os.path.join(self.save_path, f"model_{epoch}.ckpt")
-            torch.save(self.model.state_dict(), save_path)
+            torch.save(model_to_save.state_dict(), save_path)
             print(f"Model saved to {save_path}")
-        
+
         if is_best:
             best_path = os.path.join(self.save_path, "best_model.ckpt")
-            torch.save(self.model.state_dict(), best_path)
+            torch.save(model_to_save.state_dict(), best_path)
             print(f"Best model saved to {best_path}")
-
+            
         newest_path = os.path.join(self.save_path, "newest_model.ckpt")
-        torch.save(self.model.state_dict(), newest_path)
+        torch.save(model_to_save.state_dict(), newest_path)
         print(f"Newest model saved to {newest_path}")
-    
+
 class TrainEncoder(Train):
     def __init__(self, model, config, train_loader, test_loader, save_path):
         super(TrainEncoder, self).__init__(model, config, train_loader, test_loader, save_path)
