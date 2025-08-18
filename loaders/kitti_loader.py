@@ -121,7 +121,7 @@ class KITTISequence(Dataset):
 
 class KITTISequenceRecurrent(KITTISequence):
     def __init__(self, sequence_path: Path, sequence_length=5, cache_path: Path = None):
-        super().__init__(sequence_path)
+        super().__init__(sequence_path, sequence_length=sequence_length)
 
         self.sequence_length = sequence_length
         self.cached_encodings = None
