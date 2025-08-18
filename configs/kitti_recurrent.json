@@ -15,7 +15,7 @@
         "epochs": 50,
         "learning_rate": 0.0001,
         "gamma": 0.316,
-        "use_cache": true,
+        "use_cache": false,
         "save_interval": 10,
         "data_names": [
             "00", "02", "08", "09"

@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-import numpy as np
 
 class PoseEstimator(nn.Module):
     def __init__(self, dropout_rate=0.5, batch_size=1, sequence_length=5):
@@ -30,9 +29,6 @@ class PoseEstimator(nn.Module):
 
         rnn_out, _ = self.rnn(encoded_sequence)
         last_output = rnn_out[:, -1, :]  # Use last timestep
-
-        # Clear intermediate tensors
-        del encoded_sequence, rnn_out
 
         final_output = F.relu(self.fc1(last_output))
         final_output = self.dropout(final_output)

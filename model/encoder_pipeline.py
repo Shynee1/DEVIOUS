@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 from model.encoder import Encoder
 from model.decoder import Decoder

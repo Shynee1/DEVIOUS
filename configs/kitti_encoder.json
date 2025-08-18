@@ -6,10 +6,10 @@
     "data-root": "/media/jack-ford/Jack_s Disk/summer/data/kitti_datasets/dataset/sequences",
     "cache-root": "cached_encodes",
     "checkpoints": {
-        "encoder": "checkpoints/M3ED_encoder.ckpt"
+        "encoder": "checkpoints/KITTI_encoder.ckpt"
     },
     "train": {
-        "batch_size": 64,
+        "batch_size": 4,
         "sequence_length": 0,
         "epochs": 50,
         "learning_rate": 0.0001,
@@ -23,7 +23,7 @@
         ]
     },
     "test": {
-        "batch_size": 64,
+        "batch_size": 4,
         "sequence_length": 0,
         "data_names": [
             "00"

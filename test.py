@@ -75,8 +75,11 @@ class TestEncoder(Test):
 
                     os.makedirs(self.save_path, exist_ok=True)
 
-                    visualize_optical_flow(flow_cpu, os.path.join(self.save_path, f"input_{batch_idx+1}.png"), text=f"Input Flow Batch {batch_idx+1}")
-                    visualize_optical_flow(outputs_cpu, os.path.join(self.save_path, f"output_{batch_idx+1}.png"), text=f"Reconstructed Flow Batch {batch_idx+1}")
+                    batch_size, C, H, W = outputs_cpu.shape
+
+                    for i in range(batch_size):
+                        visualize_optical_flow(flow_cpu[i], os.path.join(self.save_path, f"input_{batch_idx+1}.png"), text=f"Input Flow Batch {batch_idx+1}")
+                        visualize_optical_flow(outputs_cpu[i], os.path.join(self.save_path, f"output_{batch_idx+1}.png"), text=f"Reconstructed Flow Batch {batch_idx+1}")
 
                 # Compute loss
                 loss = self.loss_function(outputs, flow, valid_mask)
