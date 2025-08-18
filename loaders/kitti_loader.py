@@ -18,6 +18,7 @@ class KITTISequence(Dataset):
         self.timestamps = np.asarray([t.total_seconds() for t in self.data.timestamps])
         self.gt = self.data.poses
         self.sequence_name = sequence
+        self.sequence_length = sequence_length
 
         if (len(self.gt) == 0):
             self.gt = None
