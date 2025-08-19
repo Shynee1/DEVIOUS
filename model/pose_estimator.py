@@ -8,7 +8,7 @@ class PoseEstimator(nn.Module):
         self.batch_size = batch_size
         self.sequence_length = sequence_length
 
-        rnn_input = 10 * 5 * 1024
+        rnn_input = 10 * 3 * 1024
         self.rnn = nn.LSTM(input_size=rnn_input, 
                            hidden_size=1000, 
                            num_layers=2,

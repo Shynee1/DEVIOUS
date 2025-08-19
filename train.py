@@ -6,7 +6,7 @@ import json
 
 from utils.loss_functions import RMSELoss
 from test import TestEncoder, TestRecurrent
-from utils.helper_functions import get_num_gpus
+from utils.helper_functions import get_num_gpus, get_device
 
 class Train:
     def __init__(self, model, config, train_loader, test_loader, save_path):
@@ -140,7 +140,12 @@ class TrainRecurrent(Train):
         super(TrainRecurrent, self).__init__(recurrent_model, config, train_loader, test_loader, save_path)
         self.loss_function = nn.MSELoss()
         self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        device = get_device(config)
+        encoding_model.to(device)
+
         self.encoding_model = encoding_model
+        
         self.tester = TestRecurrent(recurrent_model, encoding_model, config, test_loader)
         self.sequence_length = config['train']['sequence_length']
 
@@ -149,7 +154,7 @@ class TrainRecurrent(Train):
         
         # Pre-allocate the output tensor with gradients enabled
         encoded_flows = torch.zeros(
-            (batch_size, seq_len, 1024, 5, 10),
+            (batch_size, seq_len, 1024, 3, 10),
             device=flow_sequence.device,
             dtype=flow_sequence.dtype,
             requires_grad=True

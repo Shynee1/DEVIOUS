@@ -6,7 +6,7 @@ import os
 
 from utils.loss_functions import RMSELoss
 from utils.visualization import visualize_optical_flow
-from utils.helper_functions import get_num_gpus
+from utils.helper_functions import get_num_gpus, get_device
 
 class Test(object):
     def __init__(self, model, config, data_loader):
@@ -174,12 +174,15 @@ class TestRecurrent(Test):
         self.sequence_length = config['train']['sequence_length']
         self.visualizer = visualizer
 
+        device = get_device(config)
+        self.encoding_model.to(device)
+
     def encode_flows(self, flow_sequence):
         batch_size, seq_len = flow_sequence.shape[:2]
         
         # Pre-allocate the output tensor
         encoded_flows = torch.zeros(
-            (batch_size, seq_len, 1024, 5, 10),
+            (batch_size, seq_len, 1024, 3, 10),
             device=flow_sequence.device,
             dtype=flow_sequence.dtype
         )

@@ -39,7 +39,7 @@ class KITTISequence(Dataset):
         os.makedirs(self.flow_save_path, exist_ok=True)
         print(f"Precomputing RAFT flow for {self.sequence_name}...")
 
-        for i in tqdm.tqdm(range(len(self))):
+        for i in tqdm.tqdm(range(len(self.timestamps) - 1)):
             if os.path.exists(os.path.join(self.flow_save_path, f"flow_{i:06d}.npy")):
                 print(f"Flow for index {i} already exists, skipping.")
                 continue
@@ -111,6 +111,7 @@ class KITTISequence(Dataset):
 
         if self.gt is not None:
             output['gt_transform'] = np.asarray(self.gt[index], dtype=np.float32)
+            output['gt_transform'] = np.linalg.inv(output['gt_transform'])
         else:
             output['gt_transform'] = np.zeros((4, 4), dtype=np.float32)
 
@@ -144,7 +145,8 @@ class KITTISequenceRecurrent(KITTISequence):
         return result.astype(np.float32)
 
     def __len__(self):
-        return max(0, len(self.timestamps) - self.sequence_length + 1)
+        dataset_length = super().__len__()
+        return max(0, dataset_length - self.sequence_length + 1)
 
     def __getitem__(self, idx):
         valid_idx = idx + self.sequence_length - 1
