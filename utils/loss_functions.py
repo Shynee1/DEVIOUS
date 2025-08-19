@@ -24,5 +24,13 @@ class RMSELoss(nn.Module):
         pred = pred[valid_mask_expanded]
         actual = actual[valid_mask_expanded]
         return torch.sqrt(self.mse(pred, actual))
-
-
+    
+class DiagLnCovLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, pred, actual, cov):
+        EPSILON = 1e-7
+        error = (pred - actual).pow(2)
+        l = (error / cov) + torch.log(cov + EPSILON)
+        return l.mean()

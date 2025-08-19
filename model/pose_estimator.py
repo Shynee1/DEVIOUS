@@ -19,6 +19,10 @@ class PoseEstimator(nn.Module):
         self.dropout = nn.Dropout(p=dropout_rate)
         self.fc2 = nn.Linear(128, 6)
 
+        self.fc1_cov = nn.Linear(1000, 128)
+        self.dropout_cov = nn.Dropout(p=dropout_rate)
+        self.fc2_cov = nn.Linear(128, 6)
+
     def reset_cache(self):
         torch.cuda.empty_cache()
 
@@ -34,4 +38,10 @@ class PoseEstimator(nn.Module):
         final_output = self.dropout(final_output)
         final_output = self.fc2(final_output)
 
-        return final_output
+        final_output_cov = F.relu(self.fc1_cov(last_output))
+        final_output_cov = self.dropout_cov(final_output_cov)
+        final_output_cov = self.fc2_cov(final_output_cov)
+
+        final_output_cov = torch.exp(final_output_cov - 5.0)
+
+        return final_output, final_output_cov

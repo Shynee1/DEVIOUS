@@ -4,7 +4,7 @@ import tqdm
 import numpy as np
 import os
 
-from utils.loss_functions import RMSELoss
+from utils.loss_functions import RMSELoss, DiagLnCovLoss
 from utils.visualization import visualize_optical_flow
 from utils.helper_functions import get_num_gpus, get_device
 
@@ -168,7 +168,7 @@ class TestEncoderCache(Test):
 class TestRecurrent(Test):
     def __init__(self, recurrent_model, encoding_model, config, data_loader, visualizer=None):
         super().__init__(recurrent_model, config, data_loader)
-        self.loss_function = nn.MSELoss()
+        self.loss_function = DiagLnCovLoss()
         self.encoding_model = encoding_model
         self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
         self.sequence_length = config['train']['sequence_length']
@@ -217,7 +217,7 @@ class TestRecurrent(Test):
                     encodings = self.encode_flows(flow)
 
                 # Forward pass
-                outputs = self.model(encodings)               # (batch, 6)
+                outputs, cov = self.model(encodings)               # (batch, 6)
 
                 if self.visualizer is not None:
                     # Handle visualization for each item in the batch
@@ -232,7 +232,7 @@ class TestRecurrent(Test):
                         self.visualizer.update_trajectory_plots(save_plots=True)
             
                 # Compute loss
-                loss = self.loss_function(outputs, ground_truth)
+                loss = self.loss_function(outputs, ground_truth, cov)
                 total_loss += loss.item()
 
         avg_loss = total_loss / len(self.data_loader)

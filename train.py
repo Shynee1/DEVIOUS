@@ -4,7 +4,7 @@ import tqdm
 import os
 import json
 
-from utils.loss_functions import RMSELoss
+from utils.loss_functions import RMSELoss, DiagLnCovLoss
 from test import TestEncoder, TestRecurrent
 from utils.helper_functions import get_num_gpus, get_device
 
@@ -138,7 +138,7 @@ class TrainEncoder(Train):
 class TrainRecurrent(Train):
     def __init__(self, recurrent_model, encoding_model, config, train_loader, test_loader, save_path):
         super(TrainRecurrent, self).__init__(recurrent_model, config, train_loader, test_loader, save_path)
-        self.loss_function = nn.MSELoss()
+        self.loss_function = DiagLnCovLoss()
         self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
         
         device = get_device(config)
@@ -185,6 +185,7 @@ class TrainRecurrent(Train):
         for epoch in range(self.epochs):
             print(f"Starting epoch {epoch+1}/{self.epochs}")
             epoch_loss = 0.0
+            epoch_cov = 0.0
             t_range = tqdm.tqdm(self.train_loader)
             self.model.train()
     
@@ -202,11 +203,13 @@ class TrainRecurrent(Train):
                     encodings = self.encode_flows(flow)             # (batch, seq_length, 1024, 5, 10)
 
                 # Forward pass
-                outputs = self.model(encodings)                     # (batch, 6)
+                outputs, cov = self.model(encodings)                     # (batch, 6)
 
                 # Compute loss
-                loss = self.loss_function(outputs, ground_truth)
+                loss = self.loss_function(outputs, ground_truth, cov)
+
                 epoch_loss += loss.item()
+                epoch_cov += cov.mean().item()
 
                 # Backward pass
                 self.optimizer.zero_grad()
@@ -216,10 +219,6 @@ class TrainRecurrent(Train):
                 # Update progress bar
                 t_range.set_description(f"Epoch {epoch+1}/{self.epochs}, Loss: {loss.item():.6f}")
                 
-                # Clear intermediate tensors to prevent memory accumulation
-                del flow, ground_truth, encodings, outputs, loss
-                
-
             self.lr_scheduler.step()
             train_losses.append(epoch_loss / len(self.train_loader))
 
@@ -236,7 +235,7 @@ class TrainRecurrent(Train):
             self.save_model(epoch, self.config['train'], is_best=save_best, 
                             test_losses=test_losses, train_losses=train_losses)
             
-            print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {epoch_loss / len(self.train_loader):.6f}")
+            print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {epoch_loss / len(self.train_loader):.6f}, Cov: {epoch_cov}")
 
         self.tester._test()
 
