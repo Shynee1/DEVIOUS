@@ -1,11 +1,14 @@
 from loaders.m3ed_loader import M3EDSequence, M3EDSequenceRecurrent
 from loaders.kitti_loader import KITTISequence, KITTISequenceRecurrent
+from loaders.airio_loader import SeqInfDataset, imu_seq_collate
 from model.encoder_pipeline import EncoderPipeline
 from model.pose_estimator import PoseEstimator
 from test import TestEncoder, TestRecurrent, TestEncoderCache
 from train import TrainEncoder, TrainRecurrent
 from utils.egomotion_visualizer import EgomotionVisualizer
-from utils.helper_functions import get_save_path, load_model, get_num_gpus
+from utils.helper_functions import get_save_path, load_model, get_num_gpus, load_pickle_results, get_device
+from ekf.casADI_EKFrunner import run_ekf
+import numpy as np
 from pathlib import Path
 
 from torch.utils.data import DataLoader
@@ -150,8 +153,8 @@ def test_recurrent(config, dataset_name):
     # Create test data loader with num_workers=0 for visualizer compatibility
     test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='test', use_sequences=True, uses_visualizer=True)
 
-    save_path = get_save_path(config)
-    
+    save_path = os.path.join(get_save_path(config), config['test']['data_names'][0])
+
     # Setup models
     encoding_model = EncoderPipeline()
     visualizer = EgomotionVisualizer(save_path)
@@ -175,7 +178,7 @@ def test_recurrent(config, dataset_name):
         print("Using untrained recurrent model for testing...")
     
     # Test the model
-    tester = TestRecurrent(model, encoding_model.encoder, config, test_loader, visualizer=visualizer)
+    tester = TestRecurrent(model, encoding_model.encoder, config, test_loader, save_path, visualizer=visualizer, save=True)
     tester.summary()
     tester._test()
     
@@ -206,6 +209,7 @@ def cache_encoder(config, dataset_name):
     
     # Create test data loader (single dataset processing happens in TestEncoderCache)
     test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='test', use_sequences=False)
+    save_path = get_save_path(config)
 
     # Setup model
     model = EncoderPipeline()
@@ -219,7 +223,7 @@ def cache_encoder(config, dataset_name):
         print("Using untrained model for caching...")
     
     # Cache the encodings using only the encoder part
-    tester = TestEncoderCache(model.encoder, config, test_loader)
+    tester = TestEncoderCache(model.encoder, config, test_loader, save_path)
     tester.summary()
     cache_path = tester._test()
     
@@ -245,15 +249,50 @@ def test_encoder(config, dataset_name):
         print("Using untrained model for testing...")
     
     # Test the model
-    tester = TestEncoder(model, config, test_loader, save_path=save_path)
+    tester = TestEncoder(model, config, test_loader, save_path)
     tester.summary()
     tester._test()
     
     print("Encoder testing complete.")
 
+def ekf(config, dataset_name):
+    airio_path = config['ekf']['airio_path']
+    airimu_path = config['ekf']['airimu_path']
+    egomotion_path = config['ekf']['egomotion_path']
+
+    device = get_device(config)
+
+    inference_state_load = load_pickle_results(airio_path)
+    airimu_ori_load = load_pickle_results(airimu_path)
+
+    data_root = config['data-root']
+    data_names = config['ekf']['data_names']
+    
+    for name in data_names:
+
+        data_path = Path(os.path.join(data_root, name))
+        if not data_path.exists():
+            raise FileNotFoundError(f"Data path does not exist: {data_path}")
+        
+        airimu_state = airimu_ori_load[name]
+
+        egomotion_output = np.load(os.path.join(egomotion_path, f"{name}.npy"))
+
+        airimu_dataset = SeqInfDataset(
+            data_root,
+            name,
+            airimu_state,
+            device=device,
+            name=config['name'],
+            duration=1,
+            step_size=1
+        )
+
+        run_ekf(egomotion_output, airimu_dataset, name, inference_state_load)
+
 def main():
     parser = argparse.ArgumentParser(description='Egomotion estimation training and testing')
-    parser.add_argument('model_type', choices=['encoder', 'recurrent'],
+    parser.add_argument('model_type', choices=['encoder', 'recurrent', 'ekf'],
                        help='Type of model to work with')
     parser.add_argument('action', choices=['train', 'test', 'cache'],
                        help='Action to perform')
@@ -289,6 +328,8 @@ def main():
         elif args.action == 'cache':
             print("Cache action is only available for encoder model type")
             print("Usage: python main.py encoder cache")
+    elif args.model_type == 'ekf':
+        run_ekf(config)
 
 if __name__ == "__main__":
     main()

@@ -6,16 +6,16 @@
     "data-root": "/media/jack-ford/Jack_s Disk/summer/data/m3ed_datasets",
     "cache-root": "cached_encodes",
     "checkpoints": {
-        "encoder": "checkpoints/M3ED_encoder.ckpt",
-        "recurrent": "checkpoints/newest_model (1).ckpt"
+        "encoder": "checkpoints/KITTI_encoder.ckpt",
+        "recurrent": "checkpoints/KITTI_recurrent.ckpt"
     },
     "train": {
-        "batch_size": 64,
+        "batch_size": 4,
         "sequence_length": 5,
         "epochs": 50,
         "learning_rate": 0.0001,
         "gamma": 0.316,
-        "use_cache": true,
+        "use_cache": false,
         "save_interval": 10,
         "data_names": [
             "falcon_indoor_flight_1_flow.h5",
@@ -24,15 +24,16 @@
             "falcon_outdoor_night_high_beams_flow.h5",
             "falcon_outdoor_night_penno_parking_2_flow.h5",
             "spot_indoor_building_loop_flow.h5",
-            "car_urban_day_penno_small_loop_eraft.h5"
+            "falcon_outdoor_night_penno_parking_1_flow.h5"
+            
         ]
     },
     "test": {
-        "batch_size": 64,
+        "batch_size": 1,
         "sequence_length": 5,
         "use_cache": false,
         "data_names": [
-            "falcon_outdoor_night_penno_parking_1_flow.h5"
+            "car_urban_day_penno_small_loop_eraft.h5"
         ]
     }
 }

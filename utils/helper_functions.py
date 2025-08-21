@@ -1,5 +1,10 @@
 import os
 import torch
+from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Slerp
+import numpy as np
+import pickle 
+import io
 
 def get_save_path(config):
     save_root = config.get('save_dir', 'saved')
@@ -53,3 +58,33 @@ def load_model(model, checkpoint_path, strict=True):
         
     print("Model loaded successfully!")
     return model
+
+def qinterp(qs, t, t_int):
+    qs = R.from_quat(qs.numpy())
+    slerp = Slerp(t, qs)
+    interp_rot = slerp(t_int).as_quat()
+    return torch.tensor(interp_rot)
+
+def interp_xyz(time, opt_time, xyz):
+    intep_x = np.interp(time, xp=opt_time, fp = xyz[:,0])
+    intep_y = np.interp(time, xp=opt_time, fp = xyz[:,1])
+    intep_z = np.interp(time, xp=opt_time, fp = xyz[:,2])
+    inte_xyz = np.stack([intep_x, intep_y, intep_z]).transpose()
+    return torch.tensor(inte_xyz)
+
+class CPU_Unpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == 'torch.storage' and name == '_load_from_bytes':
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+        else:
+            return super().find_class(module, name)
+
+def load_pickle_results(path):
+    if path is not None:
+        result_path = os.path.join(path, 'net_output.pickle')
+        if os.path.isfile(result_path):
+            with open(result_path, 'rb') as handle:
+                state_load = CPU_Unpickler(handle).load()
+            return state_load
+        else:
+            raise Exception(f"Unable to load the network result: {result_path}")

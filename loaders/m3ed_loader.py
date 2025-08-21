@@ -12,7 +12,7 @@ class M3EDSequence(Dataset):
         self.h5f = h5py.File(h5_path, 'r')
         self.timestamps = np.asarray(self.h5f['timestamps'], dtype='float64')
 
-        self.gt_path = h5_path.name.replace("flow", "depth_gt")
+        self.gt_path = h5_path.as_posix().replace("eraft", "depth_gt")
         self.gt_h5 = h5py.File(self.gt_path, 'r') if Path(self.gt_path).exists() else None
 
         self._finalizer = weakref.finalize(self, self.close_callback, self.h5f)
@@ -28,19 +28,19 @@ class M3EDSequence(Dataset):
         Output flow shape: (H, W, 2) = (640, 1280, 2)
         """
         original_height = flow.shape[0]  # 720
-        target_height = 640
+        target_height = 384
         
         # Calculate crop parameters for center cropping
-        crop_top = (original_height - target_height) // 2  # (720 - 640) // 2 = 40
-        crop_bottom = crop_top + target_height  # 40 + 640 = 680
-        
+        crop_top = (original_height - target_height) // 2  # (720 - 384) // 2 = 168
+        crop_bottom = crop_top + target_height  # 168 + 384 = 552
+
         # Center crop the flow
         cropped_flow = flow[crop_top:crop_bottom, :, :]  # Keep all width, crop height
         
         return cropped_flow
 
     def get_image_width_height(self):
-        return 640, 1280  # Height x Width after resizing
+        return 384, 1280  # Height x Width after resizing
     
     def __len__(self):
         return len(self.timestamps)
@@ -78,7 +78,7 @@ class M3EDSequence(Dataset):
 
 class M3EDSequenceRecurrent(M3EDSequence):
     def __init__(self, h5_path: Path, sequence_length=5, cache_path:Path=None):
-        super().__init__(h5_path)
+        super().__init__(h5_path, sequence_length=sequence_length, cache_path=cache_path)
         self.sequence_length = sequence_length
         self.cached_encodings = None
         

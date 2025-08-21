@@ -9,10 +9,11 @@ from utils.visualization import visualize_optical_flow
 from utils.helper_functions import get_num_gpus, get_device
 
 class Test(object):
-    def __init__(self, model, config, data_loader):
+    def __init__(self, model, config, data_loader, save_path):
         self.model = model
         self.config = config
         self.data_loader = data_loader
+        self.save_path = save_path
 
         use_cuda = config.get('cuda', True) and torch.cuda.is_available()
         requested_gpu = config.get('gpu', 0)
@@ -44,10 +45,9 @@ class Test(object):
         raise NotImplementedError
 
 class TestEncoder(Test):
-    def __init__(self, model, config, data_loader, save_path=None):
-        super().__init__(model, config, data_loader)
+    def __init__(self, model, config, data_loader, save_path):
+        super().__init__(model, config, data_loader, save_path)
         self.loss_function = RMSELoss()
-        self.save_path = save_path
 
     def _test(self):
         self.model.eval()
@@ -92,8 +92,8 @@ class TestEncoder(Test):
         return avg_loss
 
 class TestEncoderCache(Test):
-    def __init__(self, model, config, data_loader):
-        super().__init__(model, config, data_loader)
+    def __init__(self, model, config, data_loader, save_path):
+        super().__init__(model, config, data_loader, save_path)
         self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
         self.config = config
         
@@ -166,13 +166,14 @@ class TestEncoderCache(Test):
         return cache_root
     
 class TestRecurrent(Test):
-    def __init__(self, recurrent_model, encoding_model, config, data_loader, visualizer=None):
-        super().__init__(recurrent_model, config, data_loader)
+    def __init__(self, recurrent_model, encoding_model, config, data_loader, save_path, visualizer=None, save=False):
+        super().__init__(recurrent_model, config, data_loader, save_path)
         self.loss_function = DiagLnCovLoss()
         self.encoding_model = encoding_model
         self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
         self.sequence_length = config['train']['sequence_length']
         self.visualizer = visualizer
+        self.save = save
 
         device = get_device(config)
         self.encoding_model.to(device)
@@ -200,7 +201,8 @@ class TestRecurrent(Test):
 
         t_range = tqdm.tqdm(self.data_loader)
         total_loss = 0.0
-
+        save_outputs = []
+        
         with torch.no_grad():
             for batch_idx, batch in enumerate(t_range):
 
@@ -219,18 +221,21 @@ class TestRecurrent(Test):
                 # Forward pass
                 outputs, cov = self.model(encodings)               # (batch, 6)
 
-                if self.visualizer is not None:
-                    # Handle visualization for each item in the batch
-                    batch_size = outputs.shape[0]
-                    for i in range(batch_size):
-                        # Get the last timestamp for each sequence in the batch
-                        timestamp = timestamps[i][-1].item()
+                # Save and visualize results
+                batch_size = outputs.shape[0]
+                for i in range(batch_size):
+                    timestamp = timestamps[i][-1].item()
+                    output = [timestamp, outputs[i].cpu().numpy(), cov[i].cpu().numpy()]
+                    save_outputs.append(output)
+
+                    if self.visualizer is not None:
                         self.visualizer.add_measurement(timestamp, outputs[i], ground_truth[i])
 
+                if self.visualizer is not None:
                     if batch_idx % 10 == 0:
                         self.visualizer.update_plots(save_plots=True)
                         self.visualizer.update_trajectory_plots(save_plots=True)
-            
+
                 # Compute loss
                 loss = self.loss_function(outputs, ground_truth, cov)
                 total_loss += loss.item()
@@ -240,7 +245,13 @@ class TestRecurrent(Test):
         if self.visualizer is not None:
             self.visualizer.update_plots(save_plots=True)
             self.visualizer.update_trajectory_plots(save_plots=True)
-            
+
+        if self.save:
+            parent = os.path.dirname(self.save_path)
+            os.makedirs(parent, exist_ok=True)
+            np.save(self.save_path, save_outputs)
+            print(f"Saved test outputs to {self.save_path}")
+
         print(f"Test Loss: {avg_loss}")
 
         return avg_loss
