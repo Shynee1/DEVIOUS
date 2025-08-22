@@ -10,6 +10,7 @@ from utils.helper_functions import get_save_path, load_model, get_num_gpus, load
 from ekf.casADI_EKFrunner import run_ekf
 import numpy as np
 from pathlib import Path
+from pyhocon import ConfigFactory
 
 from torch.utils.data import DataLoader
 import argparse
@@ -259,8 +260,12 @@ def ekf(config, dataset_name):
     airio_path = config['ekf']['airio_path']
     airimu_path = config['ekf']['airimu_path']
     egomotion_path = config['ekf']['egomotion_path']
-
+    airio_config = config['ekf']['airio_config']
+    
+    dataset_conf = ConfigFactory.parse_file(airio_config).inference
+    
     device = get_device(config)
+    save_path = get_save_path(config)
 
     inference_state_load = load_pickle_results(airio_path)
     airimu_ori_load = load_pickle_results(airimu_path)
@@ -276,7 +281,7 @@ def ekf(config, dataset_name):
         
         airimu_state = airimu_ori_load[name]
 
-        egomotion_output = np.load(os.path.join(egomotion_path, f"{name}.npy"))
+        egomotion_output = np.load(egomotion_path)
 
         airimu_dataset = SeqInfDataset(
             data_root,
@@ -285,10 +290,12 @@ def ekf(config, dataset_name):
             device=device,
             name=config['name'],
             duration=1,
-            step_size=1
+            step_size=1,
+            conf=dataset_conf,
+            drop_last=False
         )
 
-        run_ekf(egomotion_output, airimu_dataset, name, inference_state_load)
+        run_ekf(egomotion_output, airimu_dataset, name, inference_state_load, save_path)
 
 def main():
     parser = argparse.ArgumentParser(description='Egomotion estimation training and testing')
@@ -302,7 +309,7 @@ def main():
     args = parser.parse_args()
     
     # Determine config file
-    config_path = f'configs/{args.dataset}_{args.model_type}.json'
+    config_path = f'configs/{args.dataset}_recurrent.json'
     
     # Load configuration
     try:
@@ -329,7 +336,7 @@ def main():
             print("Cache action is only available for encoder model type")
             print("Usage: python main.py encoder cache")
     elif args.model_type == 'ekf':
-        run_ekf(config)
+        ekf(config, args.dataset)
 
 if __name__ == "__main__":
     main()

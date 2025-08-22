@@ -81,10 +81,9 @@ class CPU_Unpickler(pickle.Unpickler):
 
 def load_pickle_results(path):
     if path is not None:
-        result_path = os.path.join(path, 'net_output.pickle')
-        if os.path.isfile(result_path):
-            with open(result_path, 'rb') as handle:
+        if os.path.isfile(path):
+            with open(path, 'rb') as handle:
                 state_load = CPU_Unpickler(handle).load()
             return state_load
         else:
-            raise Exception(f"Unable to load the network result: {result_path}")
+            raise Exception(f"Unable to load the network result: {path}")

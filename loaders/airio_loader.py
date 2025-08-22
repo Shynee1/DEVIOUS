@@ -63,7 +63,7 @@ class SeqDataset(Data.Dataset):
 
         self.DataClass = Sequence.subclasses
         self.conf = conf
-        self.seq = self.DataClass[name](root, dataname, **self.conf)
+        self.seq = self.DataClass['M3ED'](root, dataname, **self.conf)
         self.data = self.seq.data
         self.seqlen = self.seq.get_length() - 1
         self.gravity = conf.gravity if "gravity" in conf.keys() else 9.81007
@@ -198,9 +198,7 @@ class SeqInfDataset(SeqDataset):
             "init_rot": self.data["gt_orientation"][frame_id:end_frame_id],
             "init_vel": self.data["velocity"][frame_id][None, ...],
         }
-
-
-    
+ 
 class M3ED(Sequence):
     def __init__(
         self,
@@ -287,6 +285,8 @@ class M3ED(Sequence):
         
         # remove gravity term
         self.remove_gravity(remove_g)
+
+        print(self.data["acc"][0:5])
         
     def get_length(self):
         return self.data["time"].shape[0]
@@ -309,8 +309,8 @@ class M3ED(Sequence):
         print(f'dt: {dt}')
 
         # Convert from RDF (Right-Down-Forward) to RBD (Right-Backward-Down) coordinate frame
-        self.data["gyro"] = imu_omega  # angular velocity in rad/s
-        self.data["acc"]  = imu_accel  # acceleration in m/s^2
+        self.data["gyro"] = np.zeros_like(imu_omega)  # angular velocity in rad/s
+        self.data["acc"]  = np.zeros_like(imu_accel)  # acceleration in m/s^2
 
         self.data["gyro"][:, 0] =  imu_omega[:, 0] # Right -> Right
         self.data["gyro"][:, 1] = -imu_omega[:, 2] # Down -> Backward

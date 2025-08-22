@@ -83,15 +83,17 @@ def run_ekf(egomotion_outputs, airimu_dataset, data_name, inference_state_load, 
     init = airimu_dataset.get_init_value()
 
     egomotion_timestamps = egomotion_outputs[:, 0]
-    egomotion_translations = egomotion_outputs[:, 1, :3]
-    egomotion_rotations = egomotion_outputs[:, 1, 3:6]
-    egomotion_covariances = egomotion_outputs[:, 2]
+    egomotion_translations = egomotion_outputs[:, 1:4]
+    egomotion_rotations = egomotion_outputs[:, 4:7]
+    egomotion_covariances = egomotion_outputs[:, 7:]
 
     # dict_keys(['cov', 'net_vel', 'ts'])
     io_result = inference_state_load[data_name]
 
     ekf = EKF_runner()
     bias_weight = 1e-12
+    imu_cov_scale = 100
+    obs_cov_scale = 0.1
 
     # STEP 1 state initialization
     initial_state = torch.zeros(15, dtype=torch.float64)
@@ -105,10 +107,14 @@ def run_ekf(egomotion_outputs, airimu_dataset, data_name, inference_state_load, 
     io_index = 0
     egomotion_idx = 0
     gt_state = {"pos": [], "vel": [], "rot": []}
+    egomotion_velocities = []
+    egomotion_timestamps_real = []
+    airio_velocities = []
     
     t_range = tqdm.tqdm(airimu_dataset)
-    for data in t_range:
-        # add the measurement of the airimu 
+    egomotion_timestamp_prev = 0
+    for idx, data in enumerate(t_range):
+        # add the measurement of the airimu
         imu_data = {"gyro": data["gyro"][0], "acc": data["acc"][0], "dt": data["dt"][0]}
         io_stamp = io_result["ts"][io_index]
         
@@ -116,11 +122,11 @@ def run_ekf(egomotion_outputs, airimu_dataset, data_name, inference_state_load, 
         r = torch.ones(3, dtype=torch.float64)
         q = torch.ones(12, dtype=torch.float64) * bias_weight
         q[:3] = data["gyro_cov"][0]
-        q[3:6] = data["acc_cov"][0]
+        q[3:6] = data["acc_cov"][0] * imu_cov_scale
 
         # Check if egomotion measurement is available
-        egomotion_timestamp = egomotion_timestamps[egomotion_idx]
-        if (io_stamp - egomotion_timestamp).abs() < 0.001:
+        egomotion_timestamp = egomotion_timestamps[egomotion_idx] / 1e6
+        if (data["timestamp"] - egomotion_timestamp).abs() < 0.002:
             translation_v = egomotion_translations[egomotion_idx]
             rotation_v = egomotion_rotations[egomotion_idx]
 
@@ -143,33 +149,37 @@ def run_ekf(egomotion_outputs, airimu_dataset, data_name, inference_state_load, 
             new_transform = T_cam_imu_new @ transform @ np.linalg.inv(T_cam_imu_new)
 
             dt = egomotion_timestamp - egomotion_timestamp_prev
-            observation = new_transform[:3, 3] # Translation
-            observation = observation / dt  # Velocity
+            if dt != 0:
+                observation = new_transform[:3, 3] # Translation
+                observation = torch.tensor(observation / dt)
 
-            egomotion_timestamp_prev = egomotion_timestamp
-            r[:3] = egomotion_covariances[egomotion_idx][:3]
-            # Deal with our silly silly mistakes
-            r[0] = egomotion_covariances[egomotion_idx][0]
-            r[1] = egomotion_covariances[egomotion_idx][2]
-            r[2] = egomotion_covariances[egomotion_idx][1]
-            egomotion_idx += 1
+                egomotion_velocities.append(observation)
+                egomotion_timestamps_real.append(egomotion_timestamp)
 
+                egomotion_timestamp_prev = egomotion_timestamp
+                r[:3] = torch.tensor(egomotion_covariances[egomotion_idx][:3]) * obs_cov_scale
+                # Deal with our silly silly mistakes
+                r[0] = egomotion_covariances[egomotion_idx][0]
+                r[1] = egomotion_covariances[egomotion_idx][2]
+                r[2] = egomotion_covariances[egomotion_idx][1]
+                egomotion_idx += 1 if egomotion_idx < len(egomotion_timestamps) - 1 else 0
         # Check if airio measurement is available
-        elif (io_stamp - data["timestamp"]).abs() < 0.001:
+        elif io_stamp - data["timestamp"].abs() < 0.001:
             observation = io_result["net_vel"][io_index]
-            r[:3] = io_result["cov"][0][io_index]
+            airio_velocities.append([io_stamp, observation])
+            r[:3] = io_result["cov"][0][io_index] * obs_cov_scale
             io_index += 1
         else:
             observation = None
 
-        Q = torch.eye(12, dtype=torch.float64) * q 
+        Q = torch.eye(12, dtype=torch.float64) * q
         R = torch.eye(3, dtype=torch.float64) * r
         
         ekf.run(imu_data, observation=observation, Q=Q, R=R)
         gt_state["pos"].append(data["gt_pos"][0])
         gt_state["vel"].append(data["gt_vel"][0])
         gt_state["rot"].append(data["gt_rot"][0])
-
+           
     gtpos = torch.stack(gt_state["pos"])
     gtrot = torch.stack(gt_state["rot"])
     gtvel = torch.stack(gt_state["vel"])
@@ -196,11 +206,12 @@ def run_ekf(egomotion_outputs, airimu_dataset, data_name, inference_state_load, 
     plt.savefig(os.path.join(save_path, f"{data_name}_ekf_result.png"))
     
     # visualize the net velocity
-    io_ts = io_result["ts"][:,0]
-    net_vel = io_result["net_vel"]
-    interp_net_vel = interp_xyz(airimu_dataset.data["time"], io_ts, net_vel.numpy())
-    interp_net_vel = airimu_dataset.data["gt_orientation"] @ interp_net_vel
-    interp_net_vel = interp_net_vel[:len(ekf_result)].numpy()
+    io_ts = np.asarray(egomotion_timestamps_real)
+    net_vel = torch.stack(egomotion_velocities).numpy()
 
-    plot_bias_subplots(ekf_result[:, 9:12], title="EKF Bias", save_path=os.path.join(save_path, f"{data_name}_bias.png"))
+    interp_net_vel = interp_xyz(airimu_dataset.data["time"], io_ts, net_vel)
+    interp_net_vel = airimu_dataset.data["gt_orientation"] @ interp_net_vel
+    interp_net_vel = interp_net_vel[:len(ekf_result)]
+
+    #plot_bias_subplots(ekf_result[:, 9:12], title="EKF Bias", save_path=os.path.join(save_path, f"{data_name}_bias.png"))
     visualize_velocity(f"EKF_vel_{data_name}", gtvel, ekf_result[:, 3:6], interp_net_vel, save_folder=save_path)

@@ -202,7 +202,7 @@ class TestRecurrent(Test):
         t_range = tqdm.tqdm(self.data_loader)
         total_loss = 0.0
         save_outputs = []
-        
+
         with torch.no_grad():
             for batch_idx, batch in enumerate(t_range):
 
@@ -225,7 +225,7 @@ class TestRecurrent(Test):
                 batch_size = outputs.shape[0]
                 for i in range(batch_size):
                     timestamp = timestamps[i][-1].item()
-                    output = [timestamp, outputs[i].cpu().numpy(), cov[i].cpu().numpy()]
+                    output = np.concatenate([[timestamp], outputs[i].cpu().numpy(), cov[i].cpu().numpy()])
                     save_outputs.append(output)
 
                     if self.visualizer is not None:
@@ -249,6 +249,7 @@ class TestRecurrent(Test):
         if self.save:
             parent = os.path.dirname(self.save_path)
             os.makedirs(parent, exist_ok=True)
+            save_outputs = np.array(save_outputs)
             np.save(self.save_path, save_outputs)
             print(f"Saved test outputs to {self.save_path}")
 
