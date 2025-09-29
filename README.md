@@ -12,9 +12,7 @@ See `requirements.txt` for environment requirements.
 
 DEVIOUS was benchmarked using the [Multi-robot, Multi-Sensor, Multi-Environment Event Dataset (M3ED)](https://m3ed.io/). Sequences were passed through E-RAFT to generate dense optical flow and Air-IO to predict inertial odometry.
 
-Download the converted flow files and the AirIO/AirIMU predictions here.
-
-You will also need to download the `data` and `depth` h5 files from the M3ED website.
+To run DEVIOUS, download the `data` and `depth` h5 files from the M3ED website. Also download the converted flow files and the AirIO/AirIMU predictions [here](https://drive.google.com/drive/folders/1Hodqb5rAyw6-ZODlA5jUJKi2qzCe8qtE?usp=sharing).
 
 **Download Pre-trained Model & Results**
 
