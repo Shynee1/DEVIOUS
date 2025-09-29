@@ -32,12 +32,16 @@ You can immediately test our method on the M3ED dataset using pre-defined settin
 
 To run the EKF component of DEVIOUS, download the ground truth files, Air-IO predictions, and DEVIOUS-VO predictions from the links above. Then, adjust the `m3ed_ekf.json` configuration file to add the correct paths for the files. 
 
-Then, run the following command: `python main.py ekf -d <dataset>`
+Then, run the following command: 
+```python main.py ekf -d <dataset>```
 
 **DEVIOUS VO**
 
 If you prefer to run the VO model yourself, download the E-RAFT flow files from the link above. 
 
-Then, run the following command: `python main.py model encoding cache -d m3ed`
-Once that is finished, run `python main.py model recurrent test -d m3ed`
+To encode all flow values and cache the results, run this command:
+```python main.py model encoding cache -d m3ed```
+
+To run inference on the cached flows, run this command:
+```python main.py model recurrent test -d m3ed```
 
