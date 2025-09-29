@@ -1,0 +1,26 @@
+{
+    "name": "m3ed_ekf",
+    "cuda": true,
+    "gpu": 0,
+    "save_dir": "saved",
+    "data-root": "/media/jack-ford/Jack_s Disk/summer/data/m3ed_datasets",
+    "datasets": {
+        "dataset_root": "/media/jack-ford/Jack_s Disk/summer/data/devious_datasets",
+        "airio": "airio_output.pickle",
+        "airimu": "airimu_output.pickle",
+        "devious": "devious_output.pickle"
+    },
+    "airio_settings": {
+        "loader_name": "M3ED",
+        "mode": "infevaluate",
+        "coordinate": "body_coord",
+        "remove_g": false,
+        "window_size": 1000,
+        "step_size": 3,
+        "gravity": 9.81007
+    },
+    "data_names": [
+        "car_forest_into_ponds_short",
+        "car_urban_day_penno_small_loop"
+    ]
+}

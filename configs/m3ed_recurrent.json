@@ -33,16 +33,8 @@
         "sequence_length": 5,
         "use_cache": false,
         "data_names": [
+            "car_forest_into_ponds_short_eraft.h5",
             "car_urban_day_penno_small_loop_eraft.h5"
-        ]
-    },
-    "ekf": {
-        "airio_path": "saved/m3ed_recurrent_10/airio.pickle",
-        "airimu_path": "saved/m3ed_recurrent_10/net_output.pickle",
-        "egomotion_path": "saved/m3ed_recurrent_10/egomotion.npy",
-        "airio_config": "configs/airio_config.conf",
-        "data_names": [
-            "car_urban_day_penno_small_loop_data.h5"
         ]
     }
 }

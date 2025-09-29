@@ -72,7 +72,7 @@ def visualize_velocity(save_prefix, gtstate, outstate, refstate=None, save_folde
     for i in range(3):
         axs[i].plot(outstate[:, i], color="b", linewidth=0.9)
         axs[i].plot(gtstate[:, i], color="mediumseagreen", linewidth=0.9)
-        axs[i].legend(["AirIO_" + legend_list[i], "gt_" + legend_list[i]])
+        axs[i].legend(["DEVIOUS_" + legend_list[i], "gt_" + legend_list[i]])
         axs[i].grid(True)
     
     if refstate is not None:
@@ -80,9 +80,9 @@ def visualize_velocity(save_prefix, gtstate, outstate, refstate=None, save_folde
             axs[i].plot(refstate[:, i], color="red", linewidth=0.9)
             axs[i].legend(
                 [
-                "AirIO_" + legend_list[i], 
+                "DEVIOUS_" + legend_list[i], 
                 "gt_" + legend_list[i],
-                "IOnet" + legend_list[i],
+                "AirIO_" + legend_list[i],
                 ]
             )
 

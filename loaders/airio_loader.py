@@ -63,10 +63,10 @@ class SeqDataset(Data.Dataset):
 
         self.DataClass = Sequence.subclasses
         self.conf = conf
-        self.seq = self.DataClass['M3ED'](root, dataname, **self.conf)
+        self.seq = self.DataClass[conf["loader_name"]](root, dataname, **self.conf)
         self.data = self.seq.data
         self.seqlen = self.seq.get_length() - 1
-        self.gravity = conf.gravity if "gravity" in conf.keys() else 9.81007
+        self.gravity = conf["gravity"] if "gravity" in conf.keys() else 9.81007
         self.interpolate = True
 
         if duration is None:
@@ -98,7 +98,6 @@ class SeqDataset(Data.Dataset):
         if "calib" in self.conf:
             loaded_param += f", calib: {self.conf.calib}"
         loaded_param += f", interpolate: {self.interpolate}, gravity: {self.gravity}"
-        print(loaded_param)
 
     def __len__(self):
         return len(self.index_map)
@@ -227,10 +226,12 @@ class M3ED(Sequence):
         
         self.g_vector = torch.tensor([0, 0, gravity], dtype=torch.double)
 
-        gt_file_name = data_name.replace("data", "depth_gt")
+        gt_file_name = data_name + "_depth_gt.h5"
         gt_file_path = os.path.join(data_root, gt_file_name)
+        
+        data_file_name = data_name + "_data.h5"
+        data_path = os.path.join(data_root, data_file_name)
 
-        data_path = os.path.join(data_root, data_name)
         # load imu data
         self.load_imu(data_path)
         self.load_gt(gt_file_path)
@@ -285,8 +286,6 @@ class M3ED(Sequence):
         
         # remove gravity term
         self.remove_gravity(remove_g)
-
-        print(self.data["acc"][0:5])
         
     def get_length(self):
         return self.data["time"].shape[0]
@@ -306,7 +305,6 @@ class M3ED(Sequence):
         dt = self.data["time"][1] - self.data["time"][0]
         self.data["time"] = np.ones_like(self.data["time"]) * dt
         self.data["time"] = np.cumsum(self.data["time"])
-        print(f'dt: {dt}')
 
         # Convert from RDF (Right-Down-Forward) to RBD (Right-Backward-Down) coordinate frame
         self.data["gyro"] = np.zeros_like(imu_omega)  # angular velocity in rad/s

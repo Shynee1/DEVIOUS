@@ -1,67 +1,43 @@
-# EVOLVE: Event-based Visual Odometry with Latent Vector Estimation
+# DEVIOUS: Deep Event-based Visual Inertial Odometry Using Synchronization
 
-**EVOLVE** is a deep learning model for estimating **6-DoF egomotion** (translation and rotation in 3D) from **event-based optical flow**. Built for robust visual odometry, EVOLVE combines unsupervised representation learning with temporal modeling to predict camera motion over time.
+DEVIOUS is a novel Visual-Inertial Odometry (VIO) framework designed to leverage the unique advantages of event cameras in conjunction with inertial measurements. Unlike traditional frame-based VIO pipelines, DEVIOUS operates on dense optical flow fields derived from asynchronous event streams, providing high-speed, low-latency, and robust odometry estimation even in challenging environments.
 
-![Model Architecture](model_architecture.png)
+## Installation and Dataset Setup
 
-## What It Does
+**Environment Installation**
 
-EVOLVE predicts how a camera moves — in 3D space — using only sequences of **optical flow computed from event data**. At each timestep, it outputs a 6-DoF relative pose estimate:
+See `requirements.txt` for environment requirements.
 
-[tx, ty, tz, wx, wy, wz]
+**Download Datasets**
 
+DEVIOUS was benchmarked using the [Multi-robot, Multi-Sensor, Multi-Environment Event Dataset (M3ED)](https://m3ed.io/). Sequences were passed through E-RAFT to generate dense optical flow and Air-IO to predict inertial odometry.
 
-Where:
-- `t`: translation (meters)
-- `w`: rotation (Euler angles in degrees)
+Download the converted flow files, the ground truth files, and the AirIO/AirIMU predictions here.
 
----
+**Download Pre-trained Model & Results**
 
-## How It Works
+The first component of DEVIOUS is the Visual Odometry (VO) model. You can download our pre-trained VO models and results below:
+|   Training Dataset | Model | Results |
+| :--------: | :----------: | :--------:|
+| M3ED | VO Model | VO Results |
+| KITTI | VO Model | VO Results |
 
-EVOLVE is trained in two stages:
+The models must be moved into the `checkpoints` folder before inference. 
 
-### 1. **Unsupervised Flow Encoding**
-We begin by training a **convolutional encoder** on event-based optical flow (generated using [E-RAFT](https://arxiv.org/abs/2203.08864)).
+## Run with Default Configuration
 
-- The encoder is trained **unsupervised** using a decoder.
-- The goal is to reconstruct the original optical flow from its latent representation.
-- This forces the encoder to learn meaningful motion features without any ground-truth supervision.
+You can immediately test our method on the M3ED dataset using pre-defined settings. 
 
-### 2. **Recurrent Motion Estimation**
-After pretraining, the encoder is reused as a fixed feature extractor in a new pipeline:
+**DEVIOUS EKF**
 
-- The latent encodings of each flow frame are passed into a **2-layer LSTM** to model temporal dynamics.
-- The final LSTM outputs go through **fully connected layers** to predict the **relative pose** between frames.
+To run the EKF component of DEVIOUS, download the ground truth files, Air-IO predictions, and DEVIOUS-VO predictions from the links above. Then, adjust the `m3ed_ekf.json` configuration file to add the correct paths for the files. 
 
----
+Then, run the following command: `python main.py ekf -d <dataset>`
 
-## Event-Based Input
+**DEVIOUS VO**
 
-Unlike conventional visual odometry models that use grayscale or RGB video, EVOLVE operates on **event data** — sparse, high-temporal-resolution streams of brightness change. Optical flow is first estimated using **E-RAFT**, then passed into the EVOLVE pipeline.
+If you prefer to run the VO model yourself, download the E-RAFT flow files from the link above. 
 
-This makes EVOLVE well-suited for:
-- Low-light conditions
-- Fast motion
-- High dynamic range environments
+Then, run the following command: `python main.py model encoding cache -d m3ed`
+Once that is finsihed, run `python main.py model recurrent test -d m3ed`
 
----
-
-## Applications
-
-- Event-based Visual Odometry
-- Drone & Robot Navigation in Extreme Conditions
-- SLAM for Neuromorphic Cameras
-- AR/VR Headset Tracking with Low Latency
-
----
-
-## Why this matters
-
-Traditional visual odometry relies on handcrafted features and frame-based images. EVOLVE learns motion representations **directly from events** — enabling robust, low-latency motion estimation in challenging scenarios.
-
-By separating the learning of **latent motion features** from the modeling of **temporal dependencies**, EVOLVE offers a flexible and data-efficient framework for event-based egomotion estimation.
-
-
-
----

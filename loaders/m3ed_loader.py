@@ -8,12 +8,13 @@ import os
 
 class M3EDSequence(Dataset):
     def __init__(self, h5_path: Path, sequence_length: int = 0, cache_path: Path = None):
-  
-        self.h5f = h5py.File(h5_path, 'r')
+        
+        flow_path = h5_path / "_eraft.h5"
+        self.h5f = h5py.File(flow_path, 'r')
         self.timestamps = np.asarray(self.h5f['timestamps'], dtype='float64')
-
-        self.gt_path = h5_path.as_posix().replace("eraft", "depth_gt")
-        self.gt_h5 = h5py.File(self.gt_path, 'r') if Path(self.gt_path).exists() else None
+        
+        gt_path = h5_path / "_depth_gt.h5"
+        self.gt_h5 = h5py.File(gt_path, 'r') if Path(gt_path).exists() else None
 
         self._finalizer = weakref.finalize(self, self.close_callback, self.h5f)
     
@@ -82,11 +83,12 @@ class M3EDSequenceRecurrent(M3EDSequence):
         self.sequence_length = sequence_length
         self.cached_encodings = None
         
-        if cache_path is not None and os.path.exists(cache_path):
-            self.cached_encodings = np.load(cache_path)
-            print(f"Cached encodings loaded from {cache_path}")
-        else:
-            print(f"WARNING: Could not load cached encoding from {cache_path}")
+        if cache_path is not None:
+            if cache_path.exists():
+                self.cached_encodings = np.load(cache_path)
+                print(f"Cached encodings loaded from {cache_path}")
+            else:
+                print(f"WARNING: Could not load cached encoding from {cache_path}")
 
     def calculate_relative_transform(self, prev_transform, curr_transform):
         # Ensure input transforms are float32

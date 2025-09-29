@@ -23,9 +23,6 @@ class PoseEstimator(nn.Module):
         self.dropout_cov = nn.Dropout(p=dropout_rate)
         self.fc2_cov = nn.Linear(128, 6)
 
-    def reset_cache(self):
-        torch.cuda.empty_cache()
-
     def forward(self, x):
         # Flatten frames for RNN processing 
         batch_size, seq_length, channels, height, width = x.shape

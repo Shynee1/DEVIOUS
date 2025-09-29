@@ -1,6 +1,6 @@
 from loaders.m3ed_loader import M3EDSequence, M3EDSequenceRecurrent
 from loaders.kitti_loader import KITTISequence, KITTISequenceRecurrent
-from loaders.airio_loader import SeqInfDataset, imu_seq_collate
+from loaders.airio_loader import SeqInfDataset
 from model.encoder_pipeline import EncoderPipeline
 from model.pose_estimator import PoseEstimator
 from test import TestEncoder, TestRecurrent, TestEncoderCache
@@ -8,10 +8,10 @@ from train import TrainEncoder, TrainRecurrent
 from utils.egomotion_visualizer import EgomotionVisualizer
 from utils.helper_functions import get_save_path, load_model, get_num_gpus, load_pickle_results, get_device
 from ekf.casADI_EKFrunner import run_ekf
+
 import numpy as np
 from pathlib import Path
-from pyhocon import ConfigFactory
-
+import pickle
 from torch.utils.data import DataLoader
 import argparse
 import torch
@@ -33,32 +33,17 @@ def get_dataset_class(dataset_name, uses_sequences=True):
     else:
         raise ValueError(f"Unsupported dataset name: {dataset_name}")
 
-def create_data_loaders(config, dataset_name='m3ed', mode='train', use_sequences=True, uses_visualizer=False):
-    """Create data loaders for training or testing"""
+def create_train_loaders(config, dataset_name='m3ed', use_sequences=True):
     data_root = config['data-root']
     num_gpus = get_num_gpus()
     num_workers = 4 * num_gpus if num_gpus > 0 else 0
-    
-    if mode == 'train':
-        data_names = config['train']['data_names']
-        batch_size = config['train']['batch_size']
-        sequence_length = config['train']['sequence_length']
-        use_cache = config['train'].get('use_cache', False)
-        shuffle_train = True
-    else:  # test
-        data_names = config['test']['data_names']
-        batch_size = config['test']['batch_size']
-        sequence_length = config['test'].get('sequence_length', config['train']['sequence_length'])
-        use_cache = config['test'].get('use_cache', False)
-        shuffle_train = False
-
-    # Override num_workers if specified
-    if uses_visualizer:
-        num_workers = 0
+    data_names = config['train']['data_names']
+    batch_size = config['train']['batch_size']
+    sequence_length = config['train']['sequence_length']
+    use_cache = config['train'].get('use_cache', False)
 
     datasets = []
     for name in data_names:
-
         data_path = Path(os.path.join(data_root, name))
         if not data_path.exists():
             raise FileNotFoundError(f"Data path does not exist: {data_path}")
@@ -72,7 +57,6 @@ def create_data_loaders(config, dataset_name='m3ed', mode='train', use_sequences
             dataset = dataset_class(data_path, 
                                     sequence_length=sequence_length,
                                     cache_path=cached_data_path)
-        
         else:
             dataset = dataset_class(data_path, sequence_length=sequence_length)
         
@@ -80,44 +64,75 @@ def create_data_loaders(config, dataset_name='m3ed', mode='train', use_sequences
 
     data = torch.utils.data.ConcatDataset(datasets)
     
-    if mode == 'train':
-        # Split into train and test sets
-        train_set, test_set = torch.utils.data.random_split(
-            data, [int(0.8 * len(data)), len(data) - int(0.8 * len(data))]
-        )
+    # Split into train and test sets
+    train_set, test_set = torch.utils.data.random_split(
+        data, [int(0.8 * len(data)), len(data) - int(0.8 * len(data))]
+    )
+    
+    train_loader = DataLoader(
+        dataset=train_set,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers
+    )
+    
+    test_loader = DataLoader(
+        dataset=test_set,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers
+    )
+    
+    return train_loader, test_loader
         
-        train_loader = DataLoader(
-            dataset=train_set,
-            batch_size=batch_size,
-            shuffle=shuffle_train,
-            num_workers=num_workers
-        )
+
+def create_test_loaders(config, dataset_name='m3ed', use_sequences=True, uses_visualizer=False):
+    data_root = config['data-root']
+    num_gpus = get_num_gpus()
+    num_workers = 4 * num_gpus if num_gpus > 0 else 0
+    data_names = config['test']['data_names']
+    batch_size = config['test']['batch_size']
+    sequence_length = config['test']['sequence_length']
+    use_cache = config['test'].get('use_cache', False)
+
+    if uses_visualizer:
+        num_workers = 0
+
+    datasets = []
+    for name in data_names:
+        data_path = Path(os.path.join(data_root, name))
+        if not data_path.exists():
+            raise FileNotFoundError(f"Data path does not exist: {data_path}")
+        
+        dataset_class = get_dataset_class(dataset_name, use_sequences)
+        
+        if use_cache and 'cache-root' in config:
+            cache_root = config['cache-root']
+            cached_data_path = os.path.join(cache_root, name.replace("flow.h5", "encoded.npy"))
+        
+            dataset = dataset_class(data_path, 
+                                    sequence_length=sequence_length,
+                                    cache_path=cached_data_path)
+        else:
+            dataset = dataset_class(data_path, sequence_length=sequence_length)
         
         test_loader = DataLoader(
-            dataset=test_set,
+            dataset=dataset,
             batch_size=batch_size,
             shuffle=False,
             num_workers=num_workers
         )
         
-        return train_loader, test_loader
-    else:
-        # Return single test loader
-        test_loader = DataLoader(
-            dataset=data,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=num_workers
-        )
-        
-        return test_loader
+        datasets.append(test_loader)
+
+    return datasets
 
 def train_recurrent(config, dataset_name):
     """Train the recurrent pose estimation model"""
     print("Starting recurrent model training...")
 
     # Create data loaders
-    train_loader, test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='train', use_sequences=True)
+    train_loader, test_loader = create_train_loaders(config, dataset_name=dataset_name, use_sequences=True)
 
     save_path = get_save_path(config)
     
@@ -151,14 +166,11 @@ def test_recurrent(config, dataset_name):
     """Test the recurrent pose estimation model"""
     print("Starting recurrent model testing...")
     
-    # Create test data loader with num_workers=0 for visualizer compatibility
-    test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='test', use_sequences=True, uses_visualizer=True)
-
-    save_path = os.path.join(get_save_path(config), config['test']['data_names'][0])
+    test_loaders = create_test_loaders(config, dataset_name=dataset_name, use_sequences=True, uses_visualizer=False)
+    save_path = get_save_path(config)
 
     # Setup models
     encoding_model = EncoderPipeline()
-    visualizer = EgomotionVisualizer(save_path)
 
     # Load encoding model
     try:
@@ -177,12 +189,23 @@ def test_recurrent(config, dataset_name):
     except (FileNotFoundError, KeyError) as e:
         print(f"Warning: {e}")
         print("Using untrained recurrent model for testing...")
-    
-    # Test the model
-    tester = TestRecurrent(model, encoding_model.encoder, config, test_loader, save_path, visualizer=visualizer, save=True)
-    tester.summary()
-    tester._test()
-    
+
+    save_dict = {}
+    output_path = os.path.join(save_path, "devious_output.pickle")
+    for idx, test_loader in enumerate(test_loaders):
+        dataset_name = config['test']['data_names'][idx]
+        visualizer = EgomotionVisualizer(os.path.join(save_path, dataset_name))
+
+        # Test the model
+        tester = TestRecurrent(model, encoding_model.encoder, config, test_loader, save_path, visualizer=visualizer)
+        tester.summary()
+        _, outputs = tester._test()
+
+        save_dict[dataset_name] = outputs
+
+        # Save all outputs to a single file
+        pickle.dump(save_dict, open(output_path, 'wb'))
+
     print("Recurrent model testing complete.")
 
 def train_encoder(config, dataset_name):
@@ -190,7 +213,7 @@ def train_encoder(config, dataset_name):
     print("Starting encoder training...")
     
     # Create data loaders
-    train_loader, test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='train', use_sequences=False)
+    train_loader, test_loader = create_train_loaders(config, dataset_name=dataset_name, use_sequences=False)
 
     save_path = get_save_path(config)
     
@@ -209,7 +232,7 @@ def cache_encoder(config, dataset_name):
     print("Starting encoder caching...")
     
     # Create test data loader (single dataset processing happens in TestEncoderCache)
-    test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='test', use_sequences=False)
+    test_loaders = create_test_loaders(config, dataset_name=dataset_name, use_sequences=False)
     save_path = get_save_path(config)
 
     # Setup model
@@ -224,10 +247,11 @@ def cache_encoder(config, dataset_name):
         print("Using untrained model for caching...")
     
     # Cache the encodings using only the encoder part
-    tester = TestEncoderCache(model.encoder, config, test_loader, save_path)
-    tester.summary()
-    cache_path = tester._test()
-    
+    for test_loader in test_loaders:
+        tester = TestEncoderCache(model.encoder, config, test_loader, save_path)
+        tester.summary()
+        cache_path = tester._test()
+
     print(f"Encoder caching complete. Files saved to: {cache_path}")
 
 def test_encoder(config, dataset_name):
@@ -235,7 +259,7 @@ def test_encoder(config, dataset_name):
     print("Starting encoder testing...")
     
     # Create test data loader
-    test_loader = create_data_loaders(config, dataset_name=dataset_name, mode='test', use_sequences=False)
+    test_loaders = create_test_loaders(config, dataset_name=dataset_name, use_sequences=False)
     
     # Setup model
     model = EncoderPipeline()
@@ -250,38 +274,35 @@ def test_encoder(config, dataset_name):
         print("Using untrained model for testing...")
     
     # Test the model
-    tester = TestEncoder(model, config, test_loader, save_path)
-    tester.summary()
-    tester._test()
+    for test_loader in test_loaders:
+        tester = TestEncoder(model.encoder, config, test_loader, save_path, save=True)
+        tester.summary()
+        tester._test()
     
     print("Encoder testing complete.")
 
 def ekf(config, dataset_name):
-    airio_path = config['ekf']['airio_path']
-    airimu_path = config['ekf']['airimu_path']
-    egomotion_path = config['ekf']['egomotion_path']
-    airio_config = config['ekf']['airio_config']
-    
-    dataset_conf = ConfigFactory.parse_file(airio_config).inference
+    data_root = config['datasets']['dataset_root']
+    airio_path = os.path.join(data_root, config['datasets']['airio'])
+    airimu_path = os.path.join(data_root, config['datasets']['airimu'])
+    devious_path = os.path.join(data_root, config['datasets']['devious'])
+    airio_config = config['airio_settings']
     
     device = get_device(config)
     save_path = get_save_path(config)
 
-    inference_state_load = load_pickle_results(airio_path)
-    airimu_ori_load = load_pickle_results(airimu_path)
+    airio_state_load = load_pickle_results(airio_path)
+    airimu_state_load = load_pickle_results(airimu_path)
+    devious_state_load = pickle.load(open(devious_path, 'rb'))
 
     data_root = config['data-root']
-    data_names = config['ekf']['data_names']
+    data_names = config['data_names']
     
     for name in data_names:
+        seq_save_path = os.path.join(save_path, name)
 
-        data_path = Path(os.path.join(data_root, name))
-        if not data_path.exists():
-            raise FileNotFoundError(f"Data path does not exist: {data_path}")
-        
-        airimu_state = airimu_ori_load[name]
-
-        egomotion_output = np.load(egomotion_path)
+        airimu_state = airimu_state_load[name]
+        devious_state = devious_state_load[name]
 
         airimu_dataset = SeqInfDataset(
             data_root,
@@ -291,26 +312,32 @@ def ekf(config, dataset_name):
             name=config['name'],
             duration=1,
             step_size=1,
-            conf=dataset_conf,
+            conf=airio_config,
             drop_last=False
         )
 
-        run_ekf(egomotion_output, airimu_dataset, name, inference_state_load, save_path)
+        run_ekf(devious_state, airimu_dataset, name, airio_state_load, seq_save_path)
 
 def main():
     parser = argparse.ArgumentParser(description='Egomotion estimation training and testing')
-    parser.add_argument('model_type', choices=['encoder', 'recurrent', 'ekf'],
-                       help='Type of model to work with')
-    parser.add_argument('action', choices=['train', 'test', 'cache'],
-                       help='Action to perform')
-    parser.add_argument('-d', '--dataset', choices=['m3ed', 'kitti'], default='m3ed',
-                       help='Dataset type to use (default: m3ed)')
-    
+    subparsers = parser.add_subparsers(help='Choose to use the VO model or the VIO EKF', dest='model')
+
+    model_parser = subparsers.add_parser('model', help='Train or test the VO model')
+    model_parser.add_argument('model_type', choices=['encoder', 'recurrent'], help='Type of model to use')
+    model_parser.add_argument('action', choices=['train', 'test', 'cache'], help='Action to perform')
+    model_parser.add_argument('-d', '--dataset', choices=['m3ed', 'kitti'], default='m3ed', help='Dataset type to use (default: m3ed)')
+
+    ekf_parser = subparsers.add_parser('ekf', help='Run the VIO EKF')
+    ekf_parser.add_argument('-d', '--dataset', choices=['m3ed', 'kitti'], default='m3ed', help='Dataset type to use (default: m3ed)')
+
     args = parser.parse_args()
     
     # Determine config file
-    config_path = f'configs/{args.dataset}_recurrent.json'
-    
+    if args.model == 'ekf':
+        config_path = f'configs/{args.dataset}_ekf.json'
+    else:
+        config_path = f'configs/{args.dataset}_{args.model_type}.json'
+
     # Load configuration
     try:
         config = json.load(open(config_path))
@@ -320,13 +347,17 @@ def main():
         return
     
     # Execute command
+    if args.model == 'ekf':
+        ekf(config, args.dataset)
+        return
+ 
     if args.model_type == 'encoder':
         if args.action == 'train':
             train_encoder(config, args.dataset)
         elif args.action == 'test':
             test_encoder(config, args.dataset)
-        elif args.action == 'cache':
-            cache_encoder(config, args.dataset)
+    elif args.action == 'cache':
+        cache_encoder(config, args.dataset)
     elif args.model_type == 'recurrent':
         if args.action == 'train':
             train_recurrent(config, args.dataset)
@@ -335,8 +366,6 @@ def main():
         elif args.action == 'cache':
             print("Cache action is only available for encoder model type")
             print("Usage: python main.py encoder cache")
-    elif args.model_type == 'ekf':
-        ekf(config, args.dataset)
-
+    
 if __name__ == "__main__":
     main()

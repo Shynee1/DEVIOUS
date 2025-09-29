@@ -36,7 +36,7 @@ class Test(object):
         print("==================================== TEST SUMMARY ====================================")
         print(f"Model: {self.model.__class__.__name__}")
         print(f"Device: {self.device}")
-        print(f"Test Set: {self.data_loader.__class__.__name__}")
+        print(f"Test Set: {self.data_loader.dataset.__class__.__name__}")
         print(f"Dataset Length: {len(self.data_loader.dataset)}")
         print(f"Batch Size: {self.data_loader.batch_size}")
         print("======================================================================================")
@@ -102,8 +102,6 @@ class TestEncoderCache(Test):
         
         # Process each dataset separately to maintain proper file mapping
         cache_root = self.config.get('cache-root', 'cached_encodes')
-        
-        # Get dataset names from config
         test_data_names = self.config['test']['data_names']
         
         for dataset_idx, dataset_name in enumerate(test_data_names):
@@ -128,17 +126,12 @@ class TestEncoderCache(Test):
                 
                 for batch_idx, batch in enumerate(t_range):
                     # Move batch to device
-                    batch = {k: v.to(self.device) for k, v in batch.items()}
-
                     flow = batch['flow']
                     
                     # Forward pass through encoder only
-                    encoded, _ = self.model(flow)  # This should be just the encoder
-                    
-                    # Apply max pooling
+                    encoded, _ = self.model(flow)
                     pooled = self.pooling(encoded)
                     
-                    # Move to CPU and convert to numpy
                     pooled_cpu = pooled.cpu().numpy()
                     
                     # Store encodings in order
@@ -147,15 +140,13 @@ class TestEncoderCache(Test):
                         all_encodings.append(encoding)
 
                     t_range.set_description(f"Batch {batch_idx+1}/{len(dataset_loader)}")
-
-            # Convert to numpy array
+                    
             encodings_array = np.stack(all_encodings)
             
             # Save to cache file
             cache_filename = dataset_name.replace("flow.h5", "encoded.npy")
             cache_path = os.path.join(cache_root, cache_filename)
             
-            # Ensure cache directory exists
             os.makedirs(cache_root, exist_ok=True)
             
             np.save(cache_path, encodings_array)
@@ -166,14 +157,13 @@ class TestEncoderCache(Test):
         return cache_root
     
 class TestRecurrent(Test):
-    def __init__(self, recurrent_model, encoding_model, config, data_loader, save_path, visualizer=None, save=False):
+    def __init__(self, recurrent_model, encoding_model, config, data_loader, save_path, visualizer=None):
         super().__init__(recurrent_model, config, data_loader, save_path)
         self.loss_function = DiagLnCovLoss()
         self.encoding_model = encoding_model
         self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
         self.sequence_length = config['train']['sequence_length']
         self.visualizer = visualizer
-        self.save = save
 
         device = get_device(config)
         self.encoding_model.to(device)
@@ -246,13 +236,6 @@ class TestRecurrent(Test):
             self.visualizer.update_plots(save_plots=True)
             self.visualizer.update_trajectory_plots(save_plots=True)
 
-        if self.save:
-            parent = os.path.dirname(self.save_path)
-            os.makedirs(parent, exist_ok=True)
-            save_outputs = np.array(save_outputs)
-            np.save(self.save_path, save_outputs)
-            print(f"Saved test outputs to {self.save_path}")
-
         print(f"Test Loss: {avg_loss}")
 
-        return avg_loss
+        return avg_loss, np.array(save_outputs)
