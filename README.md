@@ -37,6 +37,8 @@ To run the EKF and save the results, run this command:
 python main.py ekf -d <dataset>
 ```
 
+All outputs will be saved to `saved/<dataset>_ekf`
+
 **DEVIOUS VO**
 
 If you prefer to run the VO model yourself, download the E-RAFT flow files from the link above. 
@@ -50,4 +52,37 @@ To run inference on the cached flows, run this command:
 ```
 python main.py model recurrent test -d <dataset>
 ```
+
+All outputs will be saved to `saved/<dataset>_recurrent`
+
+## Citations
+
+Portions of the DEVIOUS codebase were adapted from E-RAFT:
+```
+@InProceedings{Gehrig3dv2021,
+  author = {Mathias Gehrig and Mario Millh\"ausler and Daniel Gehrig and Davide Scaramuzza},
+  title = {E-RAFT: Dense Optical Flow from Event Cameras},
+  booktitle = {International Conference on 3D Vision (3DV)},
+  year = {2021}
+}
+```
+and AirIO:
+```
+@misc{qiu2025airiolearninginertialodometry,
+      title={AirIO: Learning Inertial Odometry with Enhanced IMU Feature Observability}, 
+      author={Yuheng Qiu and Can Xu and Yutian Chen and Shibo Zhao and Junyi Geng and Sebastian Scherer},
+      year={2025},
+      eprint={2501.15659},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2501.15659}, 
+}
+```
+
+## Credits
+
+This research was completed by Jack Ford and Joseph Kahana through the University of Pennsylvania's GRASP Laboratory. 
+
+We were supervised by Prof. Kostas Daniilidis, Matthew Leonard, and Ioannis Asmanis. 
+
 
