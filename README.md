@@ -2,7 +2,7 @@
 
 DEVIOUS is a novel Visual-Inertial Odometry (VIO) framework designed to leverage the unique advantages of event cameras in conjunction with inertial measurements. Unlike traditional frame-based VIO pipelines, DEVIOUS operates on dense optical flow fields derived from asynchronous event streams, providing high-speed, low-latency, and robust odometry estimation even in challenging environments.
 
-[!model archiecture](model_architecture.png)
+![model architecture](model_architecture.png)
 
 ## Overview
 
@@ -40,9 +40,9 @@ To run DEVIOUS, on an M3ED sequence, download the following files:
 
 The models must be moved into the `checkpoints/` folder before inference. 
 
-> [! NOTE]
+> [!NOTE]
 > If you plan to inference DEVIOUS-VO manually, you will need to run E-RAFT on the event data to generate dense optical flow. 
-> Our implementation for this can be found [here]
+> Our implementation for this can be found [here](https://github.com/Shynee1/)
 
 ## Quick Run using Pre-trained VO Model
 
