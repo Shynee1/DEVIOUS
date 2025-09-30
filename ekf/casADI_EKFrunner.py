@@ -146,6 +146,7 @@ def run_ekf(egomotion_outputs, airimu_dataset, data_name, inference_state_load, 
                                       [0,  0, -1, 0],
                                       [0, -1,  0, 0],
                                       [0,  0,  0, 1]])
+            # Taken from M3ED - NEEDS TO BE CHANGED FOR DIFF DATASETS
             T_cam_imu_old = np.array([[-0.9999502,   0.00978231, -0.00197473,  0.09332941],
                                       [ 0.00976959,  0.9999321,   0.006352,   -0.05807844],
                                       [ 0.00203673,  0.0063324,  -0.99997788, -0.01409921],

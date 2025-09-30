@@ -3,11 +3,11 @@
     "cuda": true,
     "gpu": 0,
     "save_dir": "saved",
-    "data-root": "/media/jack-ford/Jack_s Disk/summer/data/kitti_datasets/dataset/sequences",
+    "data-root": "PLACEHOLDER",
     "cache-root": "cached_encodes",
     "checkpoints": {
-        "encoder": "checkpoints/KITTI_encoder.ckpt",
-        "recurrent": "checkpoints/KITTI_recurrent.ckpt"
+        "encoder": "checkpoints/devious_encoder.ckpt",
+        "recurrent": "checkpoints/devious_recurrent.ckpt"
     },
     "train": {
         "batch_size": 4,

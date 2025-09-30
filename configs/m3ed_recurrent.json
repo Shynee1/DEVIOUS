@@ -3,11 +3,11 @@
     "cuda": true,
     "gpu": 0,
     "save_dir": "saved",
-    "data-root": "/media/jack-ford/Jack_s Disk/summer/data/m3ed_datasets",
+    "data-root": "PLACEHOLDER",
     "cache-root": "cached_encodes",
     "checkpoints": {
-        "encoder": "checkpoints/KITTI_encoder.ckpt",
-        "recurrent": "checkpoints/KITTI_recurrent.ckpt"
+        "encoder": "checkpoints/devious_encoder.ckpt",
+        "recurrent": "checkpoints/devious_recurrent.ckpt"
     },
     "train": {
         "batch_size": 4,
@@ -15,26 +15,17 @@
         "epochs": 50,
         "learning_rate": 0.0001,
         "gamma": 0.316,
-        "use_cache": false,
+        "use_cache": true,
         "save_interval": 10,
-        "data_names": [
-            "falcon_indoor_flight_1_flow.h5",
-            "falcon_indoor_flight_2_flow.h5",
-            "falcon_indoor_flight_3_flow.h5",
-            "falcon_outdoor_night_high_beams_flow.h5",
-            "falcon_outdoor_night_penno_parking_2_flow.h5",
-            "spot_indoor_building_loop_flow.h5",
-            "falcon_outdoor_night_penno_parking_1_flow.h5"
-            
-        ]
+        "data_names": []
     },
     "test": {
         "batch_size": 1,
         "sequence_length": 5,
-        "use_cache": false,
+        "use_cache": true,
         "data_names": [
-            "car_forest_into_ponds_short_eraft.h5",
-            "car_urban_day_penno_small_loop_eraft.h5"
+            "car_forest_into_ponds_short",
+            "car_urban_day_penno_small_loop"
         ]
     }
 }
