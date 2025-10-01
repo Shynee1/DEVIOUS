@@ -1,3 +1,23 @@
+"""
+Extended Kalman Filter (EKF) implementation using CasADi for IMU-based state estimation.
+
+This code is based on the work described in:
+
+@misc{qiu2025airiolearninginertialodometry,
+      title={AirIO: Learning Inertial Odometry with Enhanced IMU Feature Observability}, 
+      author={Yuheng Qiu and Can Xu and Yutian Chen and Shibo Zhao and Junyi Geng and Sebastian Scherer},
+      year={2025},
+      eprint={2501.15659},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2501.15659}
+}
+
+Citation: Qiu, Y., Xu, C., Chen, Y., Zhao, S., Geng, J., & Scherer, S. (2025). 
+AirIO: Learning Inertial Odometry with Enhanced IMU Feature Observability. 
+arXiv preprint arXiv:2501.15659.
+"""
+
 import casadi as ca
 import numpy as np
 from liecasadi import SO3Tangent

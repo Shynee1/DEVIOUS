@@ -51,9 +51,9 @@ You can immediately test our method on the M3ED dataset using the pre-trained VO
 **Prerequisites:** M3ED ground truth and data files, Air-IO predictions, downloaded DEVIOUS-VO results
 
 1. Move **all** M3ED data and ground truth files into one folder.
-2. Edit the `data-root` attribute of the `m3ed_ekf.json` file to reflect the absolute location of the folder with the M3ED data.
+2. Edit the `data-root` attribute of `m3ed_ekf.json` with the location of the M3ED data folder.
 3. Move the `devious_output.pickle` file into a folder with the Air-IO and Air-IMU results.
-4. Edit the `dataset_root` attribute of the `m3ed_ekf.json` file to reflect the absolute location of the folder with the pickle data.
+4. Edit the `dataset_root` attribute of `m3ed_ekf.json` with the location of the pickle data folder.
 5. Run EKF fusion:
 ```bash
 python main.py ekf -d m3ed
@@ -67,7 +67,7 @@ To test our full pipeline, you can generate VO predictions from scratch and fuse
 **Prerequisites:** M3ED ground truth and data files, Air-IO predictions, E-RAFT flow files, pre-trained VO model in `checkpoints/`
 
 1. Move **all** M3ED data and ground truth files into one folder.
-2. Edit the `data-root` attribute of both `m3ed_encoder.json` and `m3ed_recurrent.json` to reflect the absolute location of the folder with the M3ED data.
+2. Edit the `data-root` attribute of both `m3ed_encoder.json` and `m3ed_recurrent.json` with the location of M3ED data folder.
 3. Encode the flows and cache their results:
 ```bash
 python main.py model encoder cache -d m3ed
@@ -78,7 +78,7 @@ python main.py model recurrent test -d m3ed
 ```
 5. Results will be saved to `saved/m3ed_recurrent/`
 6. Move all .pickle files into one folder
-7. Edit the `dataset_root` attribute of the `m3ed_ekf.json` file to reflect the absolute location of the folder with the pickle data.
+7. Edit the `dataset_root` attribute of `m3ed_ekf.json` with the location of the pickle data folder.
 8. Run EKF fusion:
 ```bash
 python main.py ekf -d m3ed
