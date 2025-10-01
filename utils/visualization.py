@@ -1,8 +1,6 @@
-import torch
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy
-import os
 import utils.helper_functions as helper
 from matplotlib.lines import Line2D
 

@@ -2,7 +2,6 @@ import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)))
 
 import os
-import argparse
 import numpy as np
 import pypose as pp
 import tqdm
@@ -16,7 +15,6 @@ from utils.helper_functions import interp_xyz
 from .casADI_ekf import CasADIEKF
 from matplotlib import pyplot as plt
 from .ekfutil import plot_bias_subplots, visualize_velocity
-import yaml
 import numpy as np
 
 class EKF_runner():
