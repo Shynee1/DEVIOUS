@@ -2,7 +2,7 @@
 
 DEVIOUS is a novel Visual-Inertial Odometry (VIO) framework designed to leverage the unique advantages of event cameras in conjunction with inertial measurements. Unlike traditional frame-based VIO pipelines, DEVIOUS operates on dense optical flow fields derived from asynchronous event streams, providing high-speed, low-latency, and robust odometry estimation even in challenging environments.
 
-![model architecture](model_architecture.png)
+![model architecture](model_architecture.jpg)
 
 ## Overview
 
